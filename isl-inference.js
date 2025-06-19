@@ -5,22 +5,22 @@ var jsPsych = initJsPsych();
 var timeline = [];
 
 // prolific URL
-const URLPROLIFIC = "https://app.prolific.co/submissions/complete?cc=YOUR_CODE_HERE";
+// const URLPROLIFIC = "https://app.prolific.co/submissions/complete?cc=YOUR_CODE_HERE";
 
 // experiment parameters
-const SUBDATA = {}; //empty data array
-
-
+let expName = 'inmix-sl-inference';  // from the Builder filename that created this script
+const SUBDATA = {}; //empty data array 
 
 // define welcome message trial
 var welcome = {
     type: jsPsychHtmlKeyboardResponse,
-    stimulus: "Welcome to the experiment. Press any key to begin."
+    stimulus: "Welcome to the experiment. Press the space bar to begin!",
+    choices: ['space'] 
 };
 timeline.push(welcome);
+ 
 
-
-// start the experiment
+// start the experimentswitching between 
 jsPsych.run(timeline);
 
 
