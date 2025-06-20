@@ -15,7 +15,8 @@ const SUBDATA = {}; //empty data array
 var welcome = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: "Welcome to the experiment. Press the space bar to begin!",
-    choices: ['space'] 
+    // space bar to continue
+    choices: [' '],
 };
 timeline.push(welcome);
  
