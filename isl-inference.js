@@ -3,16 +3,20 @@
 
 import { getStimSample } from "./accessories.js";
 
-
 // initialize jsPsych
 const jsPsych = initJsPsych({
     on_finish: function() {
-    jsPsych.data.displayData();
-  }
+        jsPsych.data.displayData();
+        // Consider adding data saving functionality
+    },
+    show_progress_bar: true,
+    auto_update_progress_bar: true
 });
 
-const pilotMode = true;
+const DEBUG = true;
+window.DEBUG = DEBUG;
 
+// 
 // prolific URL
 // const PROLIFIC_URL = "https://app.prolific.co/submissions/complete?cc=YOUR_CODE_HERE";
 
@@ -52,7 +56,7 @@ let numStim,                    // number of stimuli to sample for the experimen
     numGrps,                    // number of tetrad groups in the experiment
     numReps;                    // number of repetitions of each stimulus in the exposure phase    
 // set the number of stimuli, groups, and repetitions based on pilot mode
-if (pilotMode) {
+if (DEBUG) {
     numStim = 12;
     numGrps = 3;
     numReps = 20;
@@ -70,8 +74,9 @@ let cbCondition = subCbBlocks.map(item => item[0]).join("-");   // create a stri
 
 // seed the random number generator with subject number
 Math.seedrandom(subNum); 
-console.log("rand num: " + Math.random()); // log a random number for debugging
-
+if (DEBUG) {
+    console.log("rand num: " + Math.random()); // log a random number for debugging
+}
 // generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
 const subParams = getStimSample(numImgs, numStim, numGrps, numReps);
 
@@ -84,9 +89,6 @@ jsPsych.data.addProperties({
     'testOrder': cbCondition,
 });
 
-// log the experiment info
-console.log("expInfo(): \n" + JSON.stringify(expInfo()));
-
 // log the subject parameters with expInfo function
 console.log(
     "subject parameters: "
@@ -98,60 +100,93 @@ console.log(
     + "\ntest order:\t" + expInfo()["testOrder"]
 );
 
-
 // MAIN EXPERIMENTAL TIMELINE
 
 // create timeline
-var timeline = [];
+const timeline = [];
 
 // define welcome message trial
-var welcome = {
+const welcome = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: "Welcome to the experiment. Press the space bar to begin!",
     choices: [' '], // space bar to continue
     on_load: function() {
         // log the start of the experiment
-        console.log("Experiment started for subject " + subNum + " with counterbalancing number " + expInfo()["cbTestNumber"]);
+        console.log("Experiment started for subject " + subNum + " with counterbalancing number " + expInfo()["cbNum"]);
     }
 };
 //timeline.push(welcome);
 
-var fixation = {
+const fixation = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: '<div style="font-size:60px;">+</div>',
     choices: "NO_KEYS",
     trial_duration: 500,
 };
+/*
+TO DO (EXPOSURE):
+- keep fixation on screen throughout entire trial
+- make the fixation cross smaller
+- make the fixation cross react to when the space bar is pressed
+- combine visual streams into a single stream with 2 breaks and attention checks
+*/
 
-//console.log("stim.onebackListABCD[]: " + subParams.onebackListABCD[1])
-var fractImgs1 = subParams.trialsVisStm1.map((trial_id, i) => {
+const fractImgs1 = subParams.trialsVisStm1.map((stimID, tNum) => {
     return {
-        stimulus: subParams.fractObj[trial_id].src,
-        trial_id: trial_id,
-        oneback: subParams.trials1BackVisStm1[i] === 1 || 
-                 (Array.isArray(subParams.trials1BackVisStm1[i]) && subParams.trials1BackVisStm1[i].includes(1)),
+        stimulus: subParams.fractObj[stimID].src,
+        stim_id: stimID,
+        pair_id: subParams.trialIDsVisStm1[tNum],
+        is_oneback: subParams.trials1BackVisStm1[tNum] === 1,
     };
 });
 
+const fractImgs2 = subParams.trialsVisStm2.map((stimID, tNum) => {
+    return {
+        stimulus: subParams.fractObj[stimID].src,
+        stim_id: stimID,
+        pair_id: subParams.trialIDsVisStm2[tNum],
+        is_oneback: subParams.trials1BackVisStm2[tNum] === 1,
+    };
+});
 
-var visualStream1 = {
+const VisualStream = {
     type: jsPsychImageKeyboardResponse,
     stimulus: jsPsych.timelineVariable('stimulus'),
     trial_duration: 1000,
     response_ends_trial: false,
     choices: [' '],
-    prompt: jsPsych.timelineVariable('oneback') 
-        ? "<p><strong>1-back!</strong> Press space</p>" 
-        : "<p>Press space if the image repeats</p>",
+    prompt: "<p>Press space if the image repeats</p>",
+    data: function() {
+        return {
+            is_oneback: jsPsych.timelineVariable('is_oneback'),
+            stim_id: jsPsych.timelineVariable('stim_id'),
+            pair_id: jsPsych.timelineVariable('pair_id')
+        };
+    },
     on_finish: function(data) {
-        data.correct = data.oneback 
-            ? data.response === ' '
-            : data.response === null;
+        // For 1-back trials, correct response is pressing space
+        // For non-1-back trials, correct response is not pressing anything
+        const expectedResponse = data.is_oneback ? ' ' : null;
+        data.correct = data.response === expectedResponse;
         data.responded = data.response !== null;
+        // log data to console
+        console.log("trial " + data.trial_index
+            + ": \tstim=" + data.stim_id
+            + "\tpair=" + data.pair_id
+            + "\t1-back=" + Number(data.is_oneback)
+            + "\tcorrect=" + Number(data.correct)
+        );
+        // log data to jsPsych data
+        jsPsych.data.addProperties({
+            responded: data.responded,
+            correct: data.correct
+        });
+        // log data to browser console
+
     }
 };
 
-var postFixation = {
+const postFixation = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: function() {
         const lastTrial = jsPsych.data.get().last(1).values()[0];
@@ -165,16 +200,16 @@ var postFixation = {
 
 // define visual stream trials
 const procedureVisStm1 = {
-    timeline: [visualStream1, fixation],
-    timeline_variables: fractImgs1,
-    data: function() {
-        return {
-            trial_id: jsPsych.timelineVariable('trial_id'),
-            oneback: jsPsych.timelineVariable('oneback'),
-        };
-    },
+    timeline: [VisualStream, fixation],
+    timeline_variables: fractImgs1
 };
 timeline.push(procedureVisStm1);
+
+const procedureVisStm2 = {
+    timeline: [VisualStream, fixation],
+    timeline_variables: fractImgs2
+};
+timeline.push(procedureVisStm2);
 
 // start the experiment
 jsPsych.run(timeline);

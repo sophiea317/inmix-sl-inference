@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="description" content="intermixed statistical learning and associative inference experiment">
+
     <title>inmix-sl-inference</title>
 
     <!-- jspsych -->
@@ -21,10 +23,23 @@
 
     <!-- seeded random number generator -->
      <script src="//cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
-     
+    
+    <!-- Add custom styles for better mobile experience -->
+    <style>
+      @media (max-width: 768px) {
+        body { font-size: 18px; }
+        .jspsych-btn { padding: 15px 20px; }
+      }
+      /* Improve visibility of 1-back prompts */
+      .jspsych-prompt {
+        font-size: 1.2em;
+        margin-top: 20px;
+      }
+    </style>
+
   </head>
-  <body></body>
+  <body>
     <!-- experiment -->
     <script src="./isl-inference.js" type="module"></script>
-  
+  </body>
 </html>
