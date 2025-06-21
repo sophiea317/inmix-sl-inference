@@ -4,7 +4,13 @@
 import { getStimSample } from "./accessories.js";
 
 // initialize jsPsych
-const jsPsych = initJsPsych();
+const jsPsych = initJsPsych({
+    on_finish: function() {
+    jsPsych.data.displayData();
+  }
+});
+
+const pilotMode = true;
 
 // prolific URL
 // const PROLIFIC_URL = "https://app.prolific.co/submissions/complete?cc=YOUR_CODE_HERE";
@@ -25,36 +31,41 @@ const expInfo = () => jsPsych.data.dataProperties;
 jsPsych.data.addProperties({
     'expName': EXP_NAME,
     'subject': jsPsych.data.getURLVariable('participant') || 
-        String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
+        "0191", // default subject number if not provided in URL
+        // String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
     'session': jsPsych.data.getURLVariable('session') || 
         '001',
     'exposure': "retrospective",        // ["retrospective", "transitive"],
     'test': "2-step",                   // ["2-step", "1-step"],
 });
 
-// define the experiment parameters
+Math.seedrandom(expInfo()["subject"]); // seed the random number generator with subject and session
+console.log("rand num: " + Math.random()); // log a random number for debugging
+
+// Declare variables in outer scope
+let NUM_STIM, NUM_GRPS, NUM_REPS;
+
+if (pilotMode) {
+    NUM_STIM = 12;
+    NUM_GRPS = 3;
+    NUM_REPS = 20;
+} else {
+    NUM_STIM = 24;
+    NUM_GRPS = 6;
+    NUM_REPS = 40;
+}                       
 const NUM_IMGS = 109;                           // number of fractal images to choose from
-const NUM_STIM = 24;                            // number of stimuli in the experiment
-const NUM_GRPS = 6;                             // number of tetrad groups
-const NUM_BLKS = 3;                             // number of exposure blocks
-const NUM_REPS = 40;                            // number of repetitions for each pair in a group for a block
-//const NUM_TRLS = (NUM_REPS * NUM_GRPS);         // number of trials in a block
-const PROP_1BACK = 0.10;                        // prortion of trials that are one-back trials
-const STIM_1BACK = NUM_REPS * PROP_1BACK;       // number of one-back trials for a stimulus
-const PAIR_1BACK = STIM_1BACK * 2;              // number of one-back trials for a pair in a group
-//const BINS_1BACK = getNBackDistr(NUM_TRLS, 5);  // bins for distributing one-back trials, 5 bins from 1 to NUM_TRLS     
-var imgA1back = [1, 0];
-var imgB1back = [0, 1];
+const NUM_BLKS = 2;                             // number of exposure blocks
+
 const stim = getStimSample(NUM_IMGS, NUM_STIM, NUM_GRPS, NUM_REPS);
 console.log("stim sample: ", stim); //{ fractIDs, fractObj }
 console.log("AB pairs: " + stim.ABpairs + "\nBC pairs: " + stim.BCpairs + "\nCD pairs: " + stim.CDpairs);
-console.log(stim.ABCDpairs) //{ ABpairs, BCpairs, CDpairs, ACpairs, BDpairs, ADpairs }
+//console.log(stim.ABCDpairs) //{ ABpairs, BCpairs, CDpairs, ACpairs, BDpairs, ADpairs }
 //{ fractIDs, fractObj }
-console.log(
-    "NUM_IMGS: " + NUM_IMGS + ", NUM_STIM: " + NUM_STIM + ", NUM_GRPS: " + NUM_GRPS 
-    + ", NUM_BLKS: " + NUM_BLKS + ", NUM_REPS: " + NUM_REPS
-    + ", STIM_1BACK: " + STIM_1BACK + ", PAIR_1BACK: " + PAIR_1BACK);
-console.log(stim.fractIDs);       // e.g., ["007", "054", "103", ...]
+console.log("NUM_IMGS: " + NUM_IMGS + ", NUM_STIM: " + NUM_STIM + ", NUM_GRPS: " + NUM_GRPS + ", NUM_REPS: " + NUM_REPS);
+
+console.log("trials for ABCD: " + stim.trialsABCD)
+//console.log(stim.fractObj[stim.trialsABCD[0]].src)
 
 // define experiment counterbalancing variables
 const CB_DIR_TEST_BLOCKS = [[["AB"], ["BC"], ["CD"]], [["AB"], ["CD"], ["BC"]], [["BC"], ["AB"], ["CD"]], [["BC"], ["CD"], ["AB"]], [["CD"], ["AB"], ["BC"]], [["CD"], ["BC"], ["AB"]]];
@@ -94,22 +105,66 @@ var welcome = {
 };
 //timeline.push(welcome);
 
-
-// define welcome message trial
-const visualStream1 = {
-    type: jsPsychImageKeyboardResponse,
-    prompt: '<p>Press space bar when an image repeats itself</p>',
-    timeline: [
-        {stimulus: stim.fractObj[stim.fractIDs[0]].src},
-        {stimulus: stim.fractObj[stim.fractIDs[1]].src},
-        {stimulus: stim.fractObj[stim.fractIDs[2]].src},
-        {stimulus: stim.fractObj[stim.fractIDs[3]].src},
-        {stimulus: stim.fractObj[stim.fractIDs[4]].src},      
-    ],
-    // space bar to continue
-    choices: [' '],
+var fixation = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div style="font-size:60px;">+</div>',
+    choices: "NO_KEYS",
+    trial_duration: 500,
 };
-timeline.push(visualStream1);
+
+console.log("stim.onebackListABCD[]: " + stim.onebackListABCD[1])
+var fractImgs1 = stim.trialsABCD.map((trial_id, i) => {
+    return {
+        stimulus: stim.fractObj[trial_id].src,
+        trial_id: trial_id,
+        oneback: stim.onebackListABCD[i] === 1 || 
+                 (Array.isArray(stim.onebackListABCD[i]) && stim.onebackListABCD[i].includes(1)),
+    };
+});
+
+
+var visualStream1 = {
+    type: jsPsychImageKeyboardResponse,
+    stimulus: jsPsych.timelineVariable('stimulus'),
+    trial_duration: 1000,
+    response_ends_trial: false,
+    choices: [' '],
+    prompt: jsPsych.timelineVariable('oneback') 
+        ? "<p><strong>1-back!</strong> Press space</p>" 
+        : "<p>Press space if the image repeats</p>",
+    on_finish: function(data) {
+        data.correct = data.oneback 
+            ? data.response === ' '
+            : data.response === null;
+        data.responded = data.response !== null;
+    }
+};
+
+var postFixation = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function() {
+        const lastTrial = jsPsych.data.get().last(1).values()[0];
+        const color = lastTrial.responded ? "green" : "gray";
+        return `<div style="font-size: 60px; color: ${color};">+</div>`;
+    },
+    choices: "NO_KEYS",
+    trial_duration: 150,
+};
+
+
+
+// define visual stream trials
+const stream1_procedure = {
+    timeline: [visualStream1, fixation],
+    timeline_variables: fractImgs1,
+    data: function() {
+        return {
+            trial_id: jsPsych.timelineVariable('trial_id'),
+            oneback: jsPsych.timelineVariable('oneback'),
+        };
+    },
+};
+timeline.push(stream1_procedure);
 
 // start the experiment
 jsPsych.run(timeline);

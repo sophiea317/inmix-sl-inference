@@ -84,7 +84,7 @@ export function getStimSample(n, count, grps, rep) {
     const ABCDpairs = [];
     let trialListABCD = [];
     let trialListBC = [];
-    let onebackListAB = [];
+    let onebackListABCD = [];
     let onebackListBC = [];
 
     for (let i = 0; i < fractGroups.length; i++) {
@@ -107,7 +107,7 @@ export function getStimSample(n, count, grps, rep) {
         trialListABCD = indexABCD.map(i => ABCDpairs[i]);
         trialListBC = indexBC.map(i => BCpairs[i]);
 
-        onebackListAB = zerosLike(trialListABCD);
+        onebackListABCD = zerosLike(trialListABCD);
         onebackListBC = zerosLike(trialListBC);
 
         const group1backABCD = [];
@@ -142,7 +142,7 @@ export function getStimSample(n, count, grps, rep) {
                 group1backABCD.push(...onebackABCD);
                 for (let k = 0; k < onebackABCD.length; k++) {
                     const idx = onebackABCD[k];
-                    onebackListAB[idx] = (k < stim_1back) ? imgA1back : imgB1back;
+                    onebackListABCD[idx] = (k < stim_1back) ? imgA1back : imgB1back;
                 }
             }
 
@@ -176,8 +176,16 @@ export function getStimSample(n, count, grps, rep) {
             console.log("Restarting due to error:", e.message);
         }
     }
+    let { trialsABCD, boolABCD } = flattenWithOnebacks(trialListABCD, onebackListABCD);
+    //trialListABCD = flattenTrialList(trialListABCD)
 
-    return { fractIDs, fractObj, ABpairs, BCpairs, CDpairs, ACpairs, BDpairs, ADpairs, ABCDpairs, trialListABCD, trialListBC, onebackListAB, onebackListBC };
+    return { 
+      fractIDs, fractObj, 
+      ABpairs, BCpairs, CDpairs, ABCDpairs, 
+      trialListABCD, trialListBC, 
+      onebackListABCD, onebackListBC,
+      trialsABCD, boolABCD,
+    };
 }
 
 // Create an array of integers from start (inclusive) to end (exclusive)
@@ -288,9 +296,9 @@ export function shuffleWithoutRepeats(nb_values, repeats) {
       chosen = weightedchoice(population, weights);
     } catch (e) {
       if (e.message.includes("No weights > 0")) {
-        console.log("prev", prev);
-        console.log("old_weight", old_weight);
-        console.log("out", out);
+        //console.log("prev", prev);
+        //console.log("old_weight", old_weight);
+        //console.log("out", out);
         sendback(prev, old_weight, out);
         break;
       } else {
@@ -360,5 +368,40 @@ function randomArraySum(length, total, minVal, maxVal) {
   values.push(remainingTotal);
   return values;
 }
+
+function flattenWithOnebacks(trialList, onebackList) {
+    const flattened = [];
+    const flattened1back = [];
+
+    for (let i = 0; i < trialList.length; i++) {
+        const pair = trialList[i];
+        const oneback = onebackList[i];
+
+        const first = pair[0];
+        const second = pair[1];
+
+        if (Array.isArray(oneback)) {
+            if (oneback[0] === 1) {
+                flattened.push(first, first, second);
+                flattened1back.push(0, 1, 0);
+            } else if (oneback[1] === 1) {
+                flattened.push(first, second, second);
+                flattened1back.push(0, 0, 1);
+            } else {
+                flattened.push(first, second);
+                flattened1back.push(0, 0);
+            }
+        } else {
+            // No one-back trial
+            flattened.push(first, second);
+            flattened1back.push(0, 0);
+        }
+    }
+
+    return { trialsABCD: flattened, boolABCD: flattened1back };
+}
+
+
+
 
 
