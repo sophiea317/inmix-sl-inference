@@ -23,11 +23,6 @@ const pilotMode = true;
 const EXP_NAME = 'inmix-sl-inference';
 const expInfo = () => jsPsych.data.dataProperties;
 
-// function updateExpInfo(newProps) {
-//   jsPsych.data.addProperties(newProps);
-//   expInfo = jsPsych.data.dataProperties;
-// }
-
 jsPsych.data.addProperties({
     'expName': EXP_NAME,
     'subject': jsPsych.data.getURLVariable('participant') || 
@@ -39,33 +34,32 @@ jsPsych.data.addProperties({
     'test': "2-step",                   // ["2-step", "1-step"],
 });
 
-Math.seedrandom(expInfo()["subject"]); // seed the random number generator with subject and session
+// seed the random number generator with subject number
+Math.seedrandom(expInfo()["subject"]); 
 console.log("rand num: " + Math.random()); // log a random number for debugging
 
-// Declare variables in outer scope
-let NUM_STIM, NUM_GRPS, NUM_REPS;
+// define experiment parameters
+const numImgs = 109;            // number of fractal images available
+let numStim,                    // number of stimuli to sample for the experiment
+    numGrps,                    // number of tetrad groups in the experiment
+    numReps;                    // number of repetitions of each stimulus in the exposure phase    
 
+// set the number of stimuli, groups, and repetitions based on pilot mode
 if (pilotMode) {
-    NUM_STIM = 12;
-    NUM_GRPS = 3;
-    NUM_REPS = 20;
+    numStim = 12;
+    numGrps = 3;
+    numReps = 20;
 } else {
-    NUM_STIM = 24;
-    NUM_GRPS = 6;
-    NUM_REPS = 40;
-}                       
-const NUM_IMGS = 109;                           // number of fractal images to choose from
-const NUM_BLKS = 2;                             // number of exposure blocks
+    numStim = 24;
+    numGrps = 6;
+    numReps = 40;
+}
 
-const stim = getStimSample(NUM_IMGS, NUM_STIM, NUM_GRPS, NUM_REPS);
-console.log("stim sample: ", stim); //{ fractIDs, fractObj }
-console.log("AB pairs: " + stim.ABpairs + "\nBC pairs: " + stim.BCpairs + "\nCD pairs: " + stim.CDpairs);
-//console.log(stim.ABCDpairs) //{ ABpairs, BCpairs, CDpairs, ACpairs, BDpairs, ADpairs }
-//{ fractIDs, fractObj }
-console.log("NUM_IMGS: " + NUM_IMGS + ", NUM_STIM: " + NUM_STIM + ", NUM_GRPS: " + NUM_GRPS + ", NUM_REPS: " + NUM_REPS);
+// generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
+const subParams = getStimSample(numImgs, numStim, numGrps, numReps);
 
-console.log("trials for ABCD: " + stim.trialsABCD)
-//console.log(stim.fractObj[stim.trialsABCD[0]].src)
+// log the stimulus sample and pairs
+console.log("stim.sample: ", subParams);
 
 // define experiment counterbalancing variables
 const CB_DIR_TEST_BLOCKS = [[["AB"], ["BC"], ["CD"]], [["AB"], ["CD"], ["BC"]], [["BC"], ["AB"], ["CD"]], [["BC"], ["CD"], ["AB"]], [["CD"], ["AB"], ["BC"]], [["CD"], ["BC"], ["AB"]]];
@@ -112,13 +106,13 @@ var fixation = {
     trial_duration: 500,
 };
 
-console.log("stim.onebackListABCD[]: " + stim.onebackListABCD[1])
-var fractImgs1 = stim.trialsABCD.map((trial_id, i) => {
+console.log("stim.onebackListABCD[]: " + subParams.onebackListABCD[1])
+var fractImgs1 = subParams.trialsABCD.map((trial_id, i) => {
     return {
-        stimulus: stim.fractObj[trial_id].src,
+        stimulus: subParams.fractObj[trial_id].src,
         trial_id: trial_id,
-        oneback: stim.onebackListABCD[i] === 1 || 
-                 (Array.isArray(stim.onebackListABCD[i]) && stim.onebackListABCD[i].includes(1)),
+        oneback: subParams.onebackListABCD[i] === 1 || 
+                 (Array.isArray(subParams.onebackListABCD[i]) && subParams.onebackListABCD[i].includes(1)),
     };
 });
 
