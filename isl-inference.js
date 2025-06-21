@@ -3,6 +3,7 @@
 
 import { getStimSample } from "./accessories.js";
 
+
 // initialize jsPsych
 const jsPsych = initJsPsych({
     on_finish: function() {
@@ -30,20 +31,26 @@ jsPsych.data.addProperties({
         // String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
     'session': jsPsych.data.getURLVariable('session') || 
         '001',
-    'exposure': "retrospective",        // ["retrospective", "transitive"],
     'test': "2-step",                   // ["2-step", "1-step"],
+    'exposure': "retrospective",        // ["retrospective", "transitive"],
 });
-
-// seed the random number generator with subject number
-Math.seedrandom(expInfo()["subject"]); 
-console.log("rand num: " + Math.random()); // log a random number for debugging
 
 // define experiment parameters
 const numImgs = 109;            // number of fractal images available
+const CbDirectTestSeqs = [      // order of direct test blocks for each counterbalancing number
+    ["AB", "BC", "CD"],
+    ["AB", "CD", "BC"],
+    ["BC", "AB", "CD"],
+    ["BC", "CD", "AB"],
+    ["CD", "AB", "BC"],
+    ["CD", "BC", "AB"]
+].map(order => order.map(pair => [pair]));
+const cbPerms = CbDirectTestSeqs.length;      // number of counterbalancing test sequences (6 in this case)
+// const TEST_BLOCKS_DICT = {"AB": 0, "BC": 1, "CD": 2};
+// const EXPO_BLOCKS_DICT = {"retrospective": "AB-CD-BC", "transitive": "AB-BC-CD"};
 let numStim,                    // number of stimuli to sample for the experiment
     numGrps,                    // number of tetrad groups in the experiment
     numReps;                    // number of repetitions of each stimulus in the exposure phase    
-
 // set the number of stimuli, groups, and repetitions based on pilot mode
 if (pilotMode) {
     numStim = 12;
@@ -55,34 +62,44 @@ if (pilotMode) {
     numReps = 40;
 }
 
+// set subject specific parameters
+let subNum = expInfo()["subject"];                              // get subject number from expInfo()
+let subCbNum = (Number.parseInt(subNum) % cbPerms);             // set counterbalancing number based on subject number
+let subCbBlocks = CbDirectTestSeqs[subCbNum].slice();           // get subject's test blocks based on counterbalancing number
+let cbCondition = subCbBlocks.map(item => item[0]).join("-");   // create a string representation of the counterbalancing condition for logging 
+
+// seed the random number generator with subject number
+Math.seedrandom(subNum); 
+console.log("rand num: " + Math.random()); // log a random number for debugging
+
 // generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
 const subParams = getStimSample(numImgs, numStim, numGrps, numReps);
 
 // log the stimulus sample and pairs
-console.log("stim.sample: ", subParams);
+console.log("subParams: ", subParams);
 
-// define experiment counterbalancing variables
-const CB_DIR_TEST_BLOCKS = [[["AB"], ["BC"], ["CD"]], [["AB"], ["CD"], ["BC"]], [["BC"], ["AB"], ["CD"]], [["BC"], ["CD"], ["AB"]], [["CD"], ["AB"], ["BC"]], [["CD"], ["BC"], ["AB"]]];
-const TEST_BLOCKS_DICT = {"AB": 0, "BC": 1, "CD": 2};
-const EXPO_BLOCKS_DICT = {"retrospective": "AB-CD-BC", "transitive": "AB-BC-CD"};
-
-// set subject specific parameters
-let subNum = expInfo()["subject"];                              // get subject number from expInfo()
-let subCbNum = (Number.parseInt(expInfo()["subject"]) % 6);     // set counterbalancing number based on subject number
-
-// get subject's counterbalancing variables
-var subTestBlocks = CB_DIR_TEST_BLOCKS[subCbNum].slice();       // get subject's test blocks based on counterbalancing number
-var cbCondition = subTestBlocks.map(item => item[0]).join("-"); // create a string representation of the counterbalancing condition for logging 
-
-
+// add subject parameters to jsPsych data
 jsPsych.data.addProperties({
-    'cbTestNumber': subCbNum + 1, // counterbalancing number (1-6)
-    'cbTestBlocks': cbCondition,
+    'cbNum': subCbNum + 1, // counterbalancing number (1-6)
+    'testOrder': cbCondition,
 });
-console.log("expinfo(): \n" + JSON.stringify(expInfo()));
-console.log("counterbalance number: " + expInfo()["cbTestNumber"]);
-console.log("subject's test blocks: " + expInfo()["cbTestBlocks"]);
 
+// log the experiment info
+console.log("expInfo(): \n" + JSON.stringify(expInfo()));
+
+// log the subject parameters with expInfo function
+console.log(
+    "subject parameters: "
+    + "\nexp name:\t"   + expInfo()["expName"]
+    + "\nsubj num:\t"   + expInfo()["subject"]
+    + "\nexpo type:\t"  + expInfo()["exposure"]
+    + "\ntest type:\t"  + expInfo()["test"]
+    + "\ncb number:\t"  + expInfo()["cbNum"]
+    + "\ntest order:\t" + expInfo()["testOrder"]
+);
+
+
+// MAIN EXPERIMENTAL TIMELINE
 
 // create timeline
 var timeline = [];
@@ -94,7 +111,7 @@ var welcome = {
     choices: [' '], // space bar to continue
     on_load: function() {
         // log the start of the experiment
-        console.log("Experiment started for subject " + expInfo()["subject"] + " with counterbalancing number " + expInfo()["cbTestNumber"]);
+        console.log("Experiment started for subject " + subNum + " with counterbalancing number " + expInfo()["cbTestNumber"]);
     }
 };
 //timeline.push(welcome);
@@ -106,13 +123,13 @@ var fixation = {
     trial_duration: 500,
 };
 
-console.log("stim.onebackListABCD[]: " + subParams.onebackListABCD[1])
-var fractImgs1 = subParams.trialsABCD.map((trial_id, i) => {
+//console.log("stim.onebackListABCD[]: " + subParams.onebackListABCD[1])
+var fractImgs1 = subParams.trialsVisStm1.map((trial_id, i) => {
     return {
         stimulus: subParams.fractObj[trial_id].src,
         trial_id: trial_id,
-        oneback: subParams.onebackListABCD[i] === 1 || 
-                 (Array.isArray(subParams.onebackListABCD[i]) && subParams.onebackListABCD[i].includes(1)),
+        oneback: subParams.trials1BackVisStm1[i] === 1 || 
+                 (Array.isArray(subParams.trials1BackVisStm1[i]) && subParams.trials1BackVisStm1[i].includes(1)),
     };
 });
 
@@ -146,9 +163,8 @@ var postFixation = {
 };
 
 
-
 // define visual stream trials
-const stream1_procedure = {
+const procedureVisStm1 = {
     timeline: [visualStream1, fixation],
     timeline_variables: fractImgs1,
     data: function() {
@@ -158,7 +174,7 @@ const stream1_procedure = {
         };
     },
 };
-timeline.push(stream1_procedure);
+timeline.push(procedureVisStm1);
 
 // start the experiment
 jsPsych.run(timeline);

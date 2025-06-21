@@ -3,27 +3,42 @@
 
 // Main function to get the stimulus sample
 export function getStimSample(nImg, nStim, grps, rep) {
-    const imgDir = "img/";                                // directory where images are stored
-    const imgPfx = "stim_";                               // prefix for image filenames
-    const imgSfx = ".png";                                // suffix for image filenames
-    const prop1back = 0.10;                               // prortion of trials that are 1-back trials
-    const nBins = 5;                                      // number of bins for distributing 1-back trials
-    const stim1back = rep * prop1back;                    // number of 1-back trials for a stimulus
-    const grpsVisStm1 = grps * 2;                         // number of groups in the 1st visual stream
-    const grpsVisStm2 = grps;                             // number of groups in the 2nd visual stream
-    const tNumVisStm1 = grps * nStim * 2;                 // total number of trials in the 1st visual stream 
-    const tNumVisStm2 = grps * nStim;                     // total number of trials in the 2nd visual stream 
-    const binsVisStm1 = getbins(tNumVisStm1, nBins);   // bins for distributing 1-backs in AB-CD visual stream
-    const binsVisStm2 = getbins(tNumVisStm2, nBins);   // bins for distributing 1-backs in BC visual stream
-    const onebackIdx1 = [1, 0];                           // 1-back trial indices for the 1st image in the pair
-    const onebackIdx2 = [0, 1];                           // 1-back trial indices for the 2nd image in the pair
+    const imgDir = "img/";                            // directory where images are stored
+    const imgPfx = "stim_";                           // prefix for image filenames
+    const imgSfx = ".png";                            // suffix for image filenames
+    const prop1back = 0.10;                           // prortion of trials that are 1-back trials
+    const nBins = 5;                                  // number of bins for distributing 1-back trials
+    const stimOneback = rep * prop1back * 2;          // number of 1-back trials for a stimulus
+    const nPairsVisStm1 = grps * 2;                   // number of groups in the 1st visual stream
+    const nPairsVisStm2 = grps;                       // number of groups in the 2nd visual stream
+    const tNumVisStm1 = nPairsVisStm1 * rep;          // total number of trials in the 1st visual stream 
+    const tNumVisStm2 = nPairsVisStm2 * rep;          // total number of trials in the 2nd visual stream 
+    const binsVisStm1 = getbins(tNumVisStm1, nBins);  // bins for distributing 1-backs in AB-CD visual stream
+    const binsVisStm2 = getbins(tNumVisStm2, nBins);  // bins for distributing 1-backs in BC visual stream
+    const pairIdx1 = [1, 0];                          // 1-back trial indices for the 1st image in the pair
+    const pairIdx2 = [0, 1];                          // 1-back trial indices for the 2nd image in the pair
     let array = range(nImg + 1, 1);
     let imgid = sample(array, nStim);
     let fractIDs = [];
     let fractObj = {};
     let fractGrps = [];
     const groupSize = Math.floor(nStim / grps);
-    console.log("imgid: " + imgid);
+    console.log("stimOneback: " + stimOneback);
+
+    // initialize output arrays for pairs and trial lists
+    const pairsAB = [];
+    const pairsBC = [];
+    const pairsCD = [];
+    const pairsAC = [];
+    const pairsBD = [];
+    const pairsAD = [];
+    const pairsVisStm1 = [];
+    const IDsVisStm1 = [];
+    const pairsVisStm2 = [];
+    const IDsVisStm2 = [];
+    let listArrayVisStm1, listIDsVisStm1, listArrayVisStm2, listIDsVisStm2;
+    let list1BackVisStm1, list1BackVisStm2;
+    let grp1BackVisStm1, grp1BackVisStm2;
 
     // log the experiment parameters
     console.log(
@@ -32,13 +47,14 @@ export function getStimSample(nImg, nStim, grps, rep) {
         + "=> " + grps + "\tAB-BC-CD groups\n"
         + "=> " + rep + "\tstimulus reps during exposure\n"
         + "=> " + prop1back * 100 + "%\tof trials will be 1-back trials\n"
-        + "=> " + stim1back + "\t1-back trials for each stimulus\n"
+        + "=> " + stimOneback + "\t1-back trials for each stimulus\n"
         + "=> " + tNumVisStm1 + "\ttotal trials in the AB-CD vis stream\n"
         + "=> " + tNumVisStm2 + "\ttotal trials in the BC vis stream\n"
         + "=> " + binsVisStm1 + "\tbins for distributing 1-back trials in AB-CD vis stream\n"
-        + "=> " + binsVisStm2 + "\t\tbins for distributing 1-back trials in BC vis stream\n"
+        + "=> " + binsVisStm2 + "\tbins for distributing 1-back trials in BC vis stream\n"
     );
 
+    // create image objects and IDs
     for (let i = 0; i < imgid.length; i++) {
         let num = imgid[i];
         let curr_num = zfill(num, 3);
@@ -51,133 +67,93 @@ export function getStimSample(nImg, nStim, grps, rep) {
         fractObj[curr_num] = img;
     }
 
-    
-    
-
-    // range(n, start = 0, step = 1)
+    // create groups of fractal IDs
     for (const i of range(nStim, 0, groupSize)) {
         fractGrps.push(fractIDs.slice(i, i + groupSize));
     }
-    //BINS_1BACK = getNBackDistr(NUM_TRLS, 5);  // bins for distributing 1-back trials, 5 bins from 1 to NUM_TRLS     
 
-
-
-
-    
-    // Now create the pairwise structures
-    const ABpairs = [];
-    const BCpairs = [];
-    const CDpairs = [];
-    const ACpairs = [];
-    const BDpairs = [];
-    const ADpairs = [];
-    const ABCDpairs = [];
-    const ABCDpairID = [];
-    let trialListABCD = [];
-    let trialListBC = [];
-    let onebackListABCD = [];
-    let onebackListBC = [];
-
+    // get pairs of images and pair ids for stimulus groups
     for (let i = 0; i < fractGrps.length; i++) {
         const currGrp = fractGrps[i];
-        ABpairs.push([currGrp[0], currGrp[1]]);
-        BCpairs.push([currGrp[1], currGrp[2]]);
-        CDpairs.push([currGrp[2], currGrp[3]]);
-        ACpairs.push([currGrp[0], currGrp[2]]);
-        BDpairs.push([currGrp[1], currGrp[3]]);
-        ADpairs.push([currGrp[0], currGrp[3]]);
-        ABCDpairs.push([currGrp[0], currGrp[1]]);
-        ABCDpairID.push(["AB"]);
-        ABCDpairs.push([currGrp[2], currGrp[3]]);
-        ABCDpairID.push(["CD"]);
+        pairsAB.push([currGrp[0], currGrp[1]]);
+        pairsBC.push([currGrp[1], currGrp[2]]);
+        pairsCD.push([currGrp[2], currGrp[3]]);
+        pairsAC.push([currGrp[0], currGrp[2]]);
+        pairsBD.push([currGrp[1], currGrp[3]]);
+        pairsAD.push([currGrp[0], currGrp[3]]);
+        pairsVisStm1.push([currGrp[0], currGrp[1]]);
+        IDsVisStm1.push(["A", "B"]);
+        pairsVisStm1.push([currGrp[2], currGrp[3]]);
+        IDsVisStm1.push(["C", "D"]);
+        pairsVisStm2.push([currGrp[1], currGrp[2]]);
+        IDsVisStm2.push(["B", "C"]);
     }
 
+    let excl1backVisStm1, excl1backVisStm2;
     let success = false;
     while (!success) {
-        const indexABCD = getsequences(grpsVisStm1, rep);
-        const indexBC = getsequences(grpsVisStm2, rep);
-   
-        trialListABCD = indexABCD.map(i => ABCDpairs[i]);
-        trialListBC = indexBC.map(i => BCpairs[i]);
+        // shuffle the pairs for the visual streams
+        const idxVisStm1 = getsequences(nPairsVisStm1, rep);
+        const idxVisStm2 = getsequences(nPairsVisStm2, rep);
 
-        onebackListABCD = zeroslike(trialListABCD);
-        onebackListBC = zeroslike(trialListBC);
+        listArrayVisStm1 = idxVisStm1.map(i => pairsVisStm1[i]);
+        listArrayVisStm2 = idxVisStm2.map(i => pairsVisStm2[i]);
+        listIDsVisStm1 = idxVisStm1.map(i => IDsVisStm1[i]);
+        listIDsVisStm2 = idxVisStm2.map(i => IDsVisStm2[i]);
+        list1BackVisStm1 = zeroslike(listArrayVisStm1);
+        list1BackVisStm2 = zeroslike(listArrayVisStm2);
 
-        const group1backABCD = [];
-        const group1backBC = [];
-
-        let exclude1backABCD = [];
-        let exclude1backBC = [];
-
-
+        grp1BackVisStm1 = [];
+        grp1BackVisStm2 = [];
+        excl1backVisStm1 = [];
+        excl1backVisStm2 = [];
 
         try {
-            for (let i = 0; i < grpsVisStm1; i++) {
-                const idxABCD = where(indexABCD, val => val === i);
-                const ABCDbins = randarraysum(binsVisStm1.length - 1, binsVisStm1.length - 1, 0, 2);
-                const onebackABCD = [];
+          // assign 1-back trials for the first visual stream
+          assignOneBacks({
+            numPairs: nPairsVisStm1,
+            idxByPair: idxVisStm1,
+            bins: binsVisStm1,
+            excluded: excl1backVisStm1,
+            onebackArray: list1BackVisStm1,
+            onebackPair: grp1BackVisStm1,
+            label: "1st visual stream",
+            stimOneback, pairIdx1, pairIdx2
+          });
+          // assign 1-back trials for the second visual stream
+          assignOneBacks({
+            numPairs: nPairsVisStm2,
+            idxByPair: idxVisStm2,
+            bins: binsVisStm2,
+            excluded: excl1backVisStm2,
+            onebackArray: list1BackVisStm2,
+            onebackPair: grp1BackVisStm2,
+            label: "2nd visual stream",
+            stimOneback, pairIdx1, pairIdx2
+          });
 
-                for (let j = 0; j < binsVisStm1.length - 1; j++) {
-                    const ABCDindices = negbool(isin(idxABCD, exclude1backABCD));
-                    const ABCDbinIdx = idxABCD.filter((idx, k) => ABCDindices[k] && binsVisStm1[j] <= idx && idx < binsVisStm1[j + 1]);
+          // check if the 1-back trials are valid for the visual streams
+          //const valid1BackVisStm1 = where(onebackVisStm1, (val, idx) => val === 0 || (val === pairIdx1[0] && trlListVisStm1[idx][0] !== trlListVisStm1[idx - 1][0]));
+          //const valid1BackVisStm2 = where(onebackVisStm2, (val, idx) => val === 0 || (val === pairIdx2[0] && trlListVisStm2[idx][0] !== trlListVisStm2[idx - 1][0]));
+          //if (valid1BackVisStm1.length !== onebackVisStm1.length || valid1BackVisStm2.length !== onebackVisStm2.length) {
+          //  throw new Error("Invalid 1-back trials");
+          //}
+          // check if the 1-back trials are not in the same group
 
-                    if (ABCDbinIdx.length >= ABCDbins[j]) {
-                        onebackABCD.push(...sample(ABCDbinIdx, ABCDbins[j]));
-                    } else {
-                        throw new Error("No valid samples for ABCD");
-                    }
-                }
-
-                exclude1backABCD.push(...expandselct(onebackABCD));
-
-                shuffle(onebackABCD);
-
-                group1backABCD.push(...onebackABCD);
-                for (let k = 0; k < onebackABCD.length; k++) {
-                    const idx = onebackABCD[k];
-                    onebackListABCD[idx] = (k < stim1back) ? onebackIdx1 : onebackIdx2;
-                }
-            }
-
-            for (let i = 0; i < grpsVisStm2; i++) {
-                const idxBC = where(indexBC, val => val === i);
-                const BCbins = randarraysum(binsVisStm2.length - 1, binsVisStm2.length - 1, 0, 2);
-                const onebackBC = [];
-
-                for (let j = 0; j < binsVisStm2.length - 1; j++) {
-                    const BCindices = negbool(isin(idxBC, exclude1backBC));
-                    const BCbinIdx = idxBC.filter((idx, k) => BCindices[k] && binsVisStm2[j] <= idx && idx < binsVisStm2[j + 1]);
-
-                    if (BCbinIdx.length >= BCbins[j]) {
-                        onebackBC.push(...sample(BCbinIdx, BCbins[j]));
-                    } else {
-                        throw new Error("No valid samples for BC");
-                    }
-                }        
-                exclude1backBC.push(...expandselct(onebackBC));
-                shuffle(onebackBC);
-                group1backBC.push(...onebackBC);
-            
-                for (let k = 0; k < onebackBC.length; k++) {
-                    const idx = onebackBC[k];
-                    onebackListBC[idx] = (k < stim1back) ? onebackIdx1 : onebackIdx2;
-                }
-            }
-
-            success = true;
+          success = true;
         } catch (e) {
             console.log("Restarting due to error:", e.message);
         }
     }
-    let { trialsABCD, boolABCD } = flat1backlist(trialListABCD, onebackListABCD);
-    //trialListABCD = flattenTrialList(trialListABCD)
+    console.log("list1BackVisStm1:", list1BackVisStm1);
+    let { trials: trialsVisStm1, onebacks: trials1BackVisStm1 } = flat1backlist(listArrayVisStm1, list1BackVisStm1, listIDsVisStm1);
+    let { trials: trialsVisStm2, onebacks: trials1BackVisStm2 } = flat1backlist(listArrayVisStm2, list1BackVisStm2, listIDsVisStm2);
 
     return { 
       fractIDs, fractObj, 
-      ABpairs, BCpairs, CDpairs, ABCDpairs, 
-      trialListABCD, trialListBC, 
-      onebackListABCD, onebackListBC,
-      trialsABCD, boolABCD,
+      pairsVisStm1, IDsVisStm1, pairsVisStm2, IDsVisStm2,
+      listArrayVisStm1, list1BackVisStm1, listArrayVisStm2, list1BackVisStm2,
+      trialsVisStm1, trials1BackVisStm1, trialsVisStm2, trials1BackVisStm2,
     };
 }
 
@@ -210,6 +186,11 @@ function range(n, start = 0, step = 1) {
     return output;
 }
 
+// shuffle an array and return a sample of a specified count
+function sample(array, count) {
+    return shuffle(array).slice(0, count);
+}
+
 // Fisher–Yates shuffle
 function shuffle(arr) {
     const a = [...arr];
@@ -218,21 +199,6 @@ function shuffle(arr) {
         [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
-    // for (let i = array.length - 1; i > 0; i--) {
-    //     const j = Math.floor(Math.random() * (i + 1));
-    //     [array[i], array[j]] = [array[j], array[i]];
-    // }
-    // return array;
-}
-
-// shuffle an array and return a sample of a specified count
-function sample(array, count) {
-    return shuffle(array).slice(0, count);
-}
-
-// like Python's zfill, pads a number with leading zeros to a specified length
-function zfill(num, length) {
-  return num.toString().padStart(length, "0");
 }
 
 // like np.random.randint, returns a random integer from min (inclusive) to max (exclusive)
@@ -240,9 +206,20 @@ function randint(min, max) {
   return Math.floor(Math.random() * (max - min)) + min;
 }
 
+// like Python's zfill, pads a number with leading zeros to a specified length
+function zfill(num, length) {
+  return num.toString().padStart(length, "0");
+}
+
 // like np.zeros_like, returns an array of zeros with the same length as the input array
 function zeroslike(arr) {
-    return new Array(arr.length).fill(0);
+    if (Array.isArray(arr[0])) {
+        // 2D array
+        return arr.map(row => row.map(() => 0));
+    } else {
+        // 1D array
+        return arr.map(() => 0);
+    }
 }
 
 // like np.where, returns indices where the predicate is true
@@ -341,7 +318,13 @@ function getsequences(nbvalues, repeats) {
 
 // this function generates a random array of a specified length that sums to a given total
 // exam
-function randarraysum(length, total, minVal, maxVal) {
+function randarraysum(length, total, err = 1) {
+  const numPerBin = Math.floor(total / length);
+  // integer minVal and maxVal
+  const maxVal = numPerBin + err; // maximum value for each bin
+  const minVal = numPerBin - err; // minimum value for each bin
+  
+
   if (
     length <= 0 ||
     total < length * minVal ||
@@ -369,19 +352,75 @@ function randarraysum(length, total, minVal, maxVal) {
   return values;
 }
 
+function assignOneBacks({
+    numPairs,
+    idxByPair,
+    bins,
+    excluded,
+    onebackArray,
+    onebackPair,
+    label,
+    stimOneback, pairIdx1, pairIdx2,
+}) {
+    for (let i = 0; i < numPairs; i++) {
+        const idxPair = where(idxByPair, val => val === i);
+        const binCounts = randarraysum(bins.length - 1, stimOneback);
+        const onebackIdxs = [];
+
+        for (let j = 0; j < bins.length - 1; j++) {
+            const validIdx = negbool(isin(idxPair, excluded));
+            const binFiltered = idxPair.filter((idx, k) => 
+              validIdx[k] && bins[j] <= idx && idx < bins[j + 1]
+          );
+
+            if (binFiltered.length >= binCounts[j]) {
+                onebackIdxs.push(...sample(binFiltered, binCounts[j]));
+            } else {
+                throw new Error(`No valid samples for ${label}`);
+            }
+        }
+
+        excluded.push(...expandselct(onebackIdxs));
+        const onebackIdxsShuff = shuffle(onebackIdxs);
+        onebackPair.push(...onebackIdxsShuff);
+
+        for (let k = 0; k < onebackIdxsShuff.length; k++) {
+            onebackArray[onebackIdxsShuff[k]] = (k < stimOneback/2) ? pairIdx1 : pairIdx2;
+        }
+    }
+}
+
 // flattens the trial list and creates a oneback index list
 // for the 1-back trials in the format [first, second, second] or [first, first, second]
 // for the 1-back idx in the format [0, 1, 0] or [0, 0, 1] (where 1 indicates a repeat of the preceding trial)
-function flat1backlist(trialList, onebackList) {
+function flat1backlist(trialList, onebackList, idList) {
     const flatArr = [];
     const onebackIdx = [];
+    const trialData = {};
 
     for (let i = 0; i < trialList.length; i++) {
         const pair = trialList[i];
-        const oneback = onebackList[i];
-
         const first = pair[0];
         const second = pair[1];
+        const pairID = idList[i].join("");
+        const firstID = pairID[0];
+        const secondID = pairID[1];
+        const oneback = onebackList[i];
+        console.log(`Trial ${i}: pair = ${pair}, oneback = ${oneback}, pairID = ${pairID}, firstID = ${firstID}, secondID = ${secondID}`);
+
+
+        // save above to trialData object
+        trialData[i] = {
+            trial: i,
+            pair: pair,
+            pairID: pairID,
+            img1: first,
+            img2: second,
+            img1ID: firstID,
+            img2ID: secondID,
+            oneback: oneback,
+        };
+
 
         if (Array.isArray(oneback)) {
             if (oneback[0] === 1) {
@@ -401,15 +440,15 @@ function flat1backlist(trialList, onebackList) {
         }
     }
 
-    return { trialsABCD: flatArr, boolABCD: onebackIdx };
+    return { trials: flatArr, onebacks: onebackIdx };
 }
+
 
 // generates a unique order of elements in list1 such that no element is in the same position as in list1
 // used for generating foil image pairs in the test phase
 function generateUniqueOrder(list1) {
-  const list2 = [...list1];
-  shuffle(list2);
-
+  const list2 = shuffle(list1);
+  
   for (let i = 0; i < list2.length; i++) {
     if (list2[i] === list1[i]) {
       for (let j = 0; j < list2.length; j++) {
