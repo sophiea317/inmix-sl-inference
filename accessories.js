@@ -26,27 +26,34 @@ export function getStimSample(nImg, nStim, grps, rep) {
   if (nStim % grps !== 0) {
       throw new Error("Number of stimuli must be divisible by number of groups");
   }
-  const imgDir = "img/";                            // directory where images are stored
-  const imgPfx = "stim_";                           // prefix for image filenames
-  const imgSfx = ".png";                            // suffix for image filenames
-  const prop1back = 0.10;                           // prortion of trials that are 1-back trials
-  const nBins = 5;                                  // number of bins for distributing 1-back trials
-  const stimOneback = rep * prop1back * 2;          // number of 1-back trials for a stimulus
-  const nPairsVisStm1 = grps * 2;                   // number of groups in the 1st visual stream
-  const nPairsVisStm2 = grps;                       // number of groups in the 2nd visual stream
-  const tNumVisStm1 = nPairsVisStm1 * rep;          // total number of trials in the 1st visual stream 
-  const tNumVisStm2 = nPairsVisStm2 * rep;          // total number of trials in the 2nd visual stream 
-  const binsVisStm1 = getbins(tNumVisStm1, nBins);  // bins for distributing 1-backs in AB-CD visual stream
-  const binsVisStm2 = getbins(tNumVisStm2, nBins);  // bins for distributing 1-backs in BC visual stream
-  const pairIdx1 = [1, 0];                          // 1-back trial indices for the 1st image in the pair
-  const pairIdx2 = [0, 1];                          // 1-back trial indices for the 2nd image in the pair
+  const imgDir = "img/";                                  // directory where images are stored
+  const imgPfx = "stim_";                                 // prefix for image filenames
+  const imgSfx = ".png";                                  // suffix for image filenames
+  const prop1back = 0.10;                                 // prortion of trials that are 1-back trials
+  const nBins = 5;                                        // number of bins for distributing 1-back trials
+  const stimOneback = rep * prop1back * 2;                // number of 1-back trials for a stimulus
+  const nPairsVisStm1 = grps * 2;                         // number of groups in the 1st visual stream
+  const nPairsVisStm2 = grps;                             // number of groups in the 2nd visual stream
+  const pairRepsVisStm1 = nPairsVisStm1 * rep;            // total number of trials in the 1st visual stream
+  const pairRepsVisStm2 = nPairsVisStm2 * rep;            // total number of trials in the 2nd visual stream
+  const pairTrlsVisStm1 = pairRepsVisStm1 * 2;            // total number of paired trials in the 1st visual stream
+  const pairTrlsVisStm2 = pairRepsVisStm2 * 2;            // total number of paired trials in the 2nd visual stream
+  const n1backVisStm1 = pairTrlsVisStm1 * prop1back;      // total number of 1-back trials in the 1st visual stream
+  const n1backVisStm2 = pairTrlsVisStm2 * prop1back;      // total number of 1-back trials in the 2nd visual stream
+  const nTrialsVisStm1 = pairTrlsVisStm1 + n1backVisStm1; // total number of trials in the 1st visual stream
+  const nTrialsVisStm2 = pairTrlsVisStm2 + n1backVisStm2; // total number of trials in the 2nd visual stream
+  const binsVisStm1 = getbins(pairRepsVisStm1, nBins);    // bins for distributing 1-backs in AB-CD visual stream
+  const binsVisStm2 = getbins(pairRepsVisStm2, nBins);    // bins for distributing 1-backs in BC visual stream
+  const pairIdx1 = [1, 0];                                // 1-back trial indices for the 1st image in the pair
+  const pairIdx2 = [0, 1];                                // 1-back trial indices for the 2nd image in the pair
   let array = range(nImg + 1, 1);
   let imgid = sample(array, nStim);
   let fractIDs = [];
   let fractObj = {};
   let fractGrps = [];
   const groupSize = Math.floor(nStim / grps);
-  console.log("stimOneback: " + stimOneback);
+  // log the number of images and groups
+
 
   // initialize output arrays for pairs and trial lists
   const pairsAB = [];
@@ -66,15 +73,28 @@ export function getStimSample(nImg, nStim, grps, rep) {
   // log the experiment parameters
   console.log(
       "Experiment parameters: \n"
+      + "=> " + nImg + "\ttotal number of images available\n"
       + "=> " + nStim + "\timgs sampled from " + nImg + " imgs\n"
       + "=> " + grps + "\tAB-BC-CD groups\n"
       + "=> " + rep + "\tstimulus reps during exposure\n"
       + "=> " + prop1back * 100 + "%\tof trials will be 1-back trials\n"
-      + "=> " + stimOneback + "\t1-back trials for each stimulus\n"
-      + "=> " + tNumVisStm1 + "\ttotal trials in the AB-CD vis stream\n"
-      + "=> " + tNumVisStm2 + "\ttotal trials in the BC vis stream\n"
-      + "=> " + binsVisStm1 + "\tbins for distributing 1-back trials in AB-CD vis stream\n"
-      + "=> " + binsVisStm2 + "\tbins for distributing 1-back trials in BC vis stream\n"
+      + "=> " + stimOneback + "\t1-back trials for each pair\n"
+      + "=> " + nBins + "\tnumber of bins for distributing 1-back trials\n"
+  );
+
+  console.log(
+    "Visual streams parameters: \n"
+    + "=> " + nPairsVisStm1 + "\tnumber of pairs in the AB-CD stream\n"
+    + "=> " + nPairsVisStm2 + "\tnumber of pairs in the BC stream\n"
+    + "=> " + pairRepsVisStm1 + "\ttotal paired trials in the AB-CD stream\n"
+    + "=> " + pairRepsVisStm2 + "\ttotal paired trials in the BC stream\n"
+    + zfill(nTrialsVisStm1, 4) + "\ttrials in stream 1:  " + pairTrlsVisStm1 + " pair trials  +  " + n1backVisStm1 + " 1-back trials\n"
+    + zfill(nTrialsVisStm2, 4) + "\ttrials in stream 2:  " + pairTrlsVisStm2 + " pair trials  +  " + n1backVisStm2 + " 1-back trials\n"
+  );
+
+  console.log(
+    "Bins for 1-back trials in AB-CD stream: \t" + binsVisStm1 + "\n" + 
+    "Bins for 1-back trials in BC stream: \t\t" + binsVisStm2
   );
 
   // create image objects and IDs
@@ -126,6 +146,7 @@ export function getStimSample(nImg, nStim, grps, rep) {
       list1BackVisStm1 = zeroslike(listArrayVisStm1);
       list1BackVisStm2 = zeroslike(listArrayVisStm2);
 
+
       grp1BackVisStm1 = [];
       grp1BackVisStm2 = [];
       excl1backVisStm1 = [];
@@ -160,14 +181,14 @@ export function getStimSample(nImg, nStim, grps, rep) {
           console.log("Restarting due to error:", e.message);
       }
   }
-  let { trials: trialsVisStm1, onebacks: trials1BackVisStm1, ids: trialIDsVisStm1 } = flat1backlist(listArrayVisStm1, list1BackVisStm1, listIDsVisStm1);
-  let { trials: trialsVisStm2, onebacks: trials1BackVisStm2, ids: trialIDsVisStm2 } = flat1backlist(listArrayVisStm2, list1BackVisStm2, listIDsVisStm2);
+  let { trials: trialsVisStm1, onebacks: trials1BackVisStm1, ids: trialIDsVisStm1, trialData: trialDataVisStm1 } = flat1backlist(listArrayVisStm1, list1BackVisStm1, listIDsVisStm1);
+  let { trials: trialsVisStm2, onebacks: trials1BackVisStm2, ids: trialIDsVisStm2, trialData: trialDataVisStm2 } = flat1backlist(listArrayVisStm2, list1BackVisStm2, listIDsVisStm2);
 
   return { 
     fractIDs, fractObj, 
     pairsVisStm1, IDsVisStm1, pairsVisStm2, IDsVisStm2,
-    trialsVisStm1, trials1BackVisStm1, trialIDsVisStm1,
-    trialsVisStm2, trials1BackVisStm2, trialIDsVisStm2,
+    trialsVisStm1, trials1BackVisStm1, trialIDsVisStm1, trialDataVisStm1,
+    trialsVisStm2, trials1BackVisStm2, trialIDsVisStm2, trialDataVisStm2,
     listArrayVisStm1, list1BackVisStm1, listArrayVisStm2, list1BackVisStm2, 
   };
 }
@@ -222,7 +243,7 @@ function randint(min, max) {
 }
 
 // like Python's zfill, pads a number with leading zeros to a specified length
-function zfill(num, length) {
+export function zfill(num, length) {
   return num.toString().padStart(length, "0");
 }
 
@@ -423,6 +444,8 @@ function flat1backlist(trialList, onebackList, idList) {
   const onebackIdx = [];
   const flatID = [];
   const trialData = {};
+  let tCount = 0;
+
 
   for (let i = 0; i < trialList.length; i++) {
       const pair = trialList[i];
@@ -435,45 +458,106 @@ function flat1backlist(trialList, onebackList, idList) {
       const first1back = oneback[0];
       const second1back = oneback[1];
 
-
-      // save above to trialData object
-      trialData[i] = {
-          ntrial: i,
-          pair: pair,
-          pairID: pairID,
-          img1: first,
-          img2: second,
-          img1ID: firstID,
-          img2ID: secondID,
-          img1rep: first1back,
-          img2rep: second1back,
-      };
       if (window.DEBUG) {
         console.log(`${zfill(i+1,3)}) ${pairID} pair:\t ${firstID}: stim=${first}, 1-back=${first1back}\t ${secondID}: stim=${second}, 1-back=${second1back}`);
       }
-      if (Array.isArray(oneback)) {
-          if (oneback[0] === 1) {
-              flatArr.push(first, first, second);
-              onebackIdx.push(0, 1, 0);
-              flatID.push(firstID, firstID, secondID);
-          } else if (oneback[1] === 1) {
-              flatArr.push(first, second, second);
-              onebackIdx.push(0, 0, 1);
-              flatID.push(firstID, secondID, secondID);
-          } else {
-              flatArr.push(first, second);
-              onebackIdx.push(0, 0);
-              flatID.push(firstID, secondID);
-          }
-      } else {
-          // No 1-back trial
-          flatArr.push(first, second);
-          onebackIdx.push(0, 0);
-          flatID.push(firstID, secondID);
-      }
-  }
 
-  return { trials: flatArr, onebacks: onebackIdx, ids: flatID };
+      if (first1back === 1) {
+          flatArr.push(first, first, second);
+          onebackIdx.push(0, 1, 0);
+          flatID.push(firstID, firstID, secondID);
+          trialData[tCount] = {
+              tId: tCount+1,
+              is1Back: false,
+              expoCond: pairID,
+              stimFid: first,
+              stimIdn: firstID,
+              pairFid: second,
+              pairIdn: secondID,
+          };
+          tCount++;
+          trialData[tCount] = {
+              tId: tCount+1,
+              is1Back: true,
+              expoCond: pairID,
+              stimFid: first,
+              stimIdn: firstID,
+              pairFid: second,
+              pairIdn: secondID,
+            };
+            tCount++;
+            trialData[tCount] = {
+              tId: tCount+1,
+              is1Back: false,
+              expoCond: pairID,
+              stimFid: second,
+              stimIdn: secondID,
+              pairFid: first,
+              pairIdn: firstID,
+            };
+            tCount++;
+      } else if (second1back === 1) {
+          flatArr.push(first, second, second);
+          onebackIdx.push(0, 0, 1);
+          flatID.push(firstID, secondID, secondID);
+          trialData[tCount] = {
+            tId: tCount+1,
+            is1Back: false,
+            expoCond: pairID,
+            stimFid: first,
+            stimIdn: firstID,
+            pairFid: second,
+            pairIdn: secondID,
+          };
+          tCount++;
+          trialData[tCount] = {
+            tId: tCount+1,
+            is1Back: false,
+            expoCond: pairID,
+            stimFid: second,
+            stimIdn: secondID,
+            pairFid: first,
+            pairIdn: firstID,
+          };
+          tCount++;
+          trialData[tCount] = {
+            tId: tCount+1,
+            is1Back: true,
+            expoCond: pairID,
+            stimFid: second,
+            stimIdn: secondID,
+            pairFid: first,
+            pairIdn: firstID,
+          };
+          tCount++;
+      } else {
+      // No 1-back trial
+      flatArr.push(first, second);
+      onebackIdx.push(0, 0);
+      flatID.push(firstID, secondID);
+      trialData[tCount] = {
+        tId: tCount+1,
+        is1Back: false,
+        expoCond: pairID,
+        stimFid: first,
+        stimIdn: firstID,
+        pairFid: second,
+        pairIdn: secondID,
+      };
+      tCount++;
+      trialData[tCount] = {
+        tId: tCount+1,
+        is1Back: false,
+        expoCond: pairID,
+        stimFid: second,
+        stimIdn: secondID,
+        pairFid: first,
+        pairIdn: firstID,
+      };
+      tCount++;
+    }
+  }
+  return { trials: flatArr, onebacks: onebackIdx, ids: flatID, trialData };
 }
 
 
