@@ -1,0 +1,86 @@
+/* style.css */
+
+/* General styles for the jsPsych content */
+.jspsych-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    position: relative;
+}
+
+/* Center the content vertically and horizontally */
+.jspsych-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60%;
+}
+
+/* Top prompt text */
+.top-prompt {
+    position: absolute;
+    top: 5%;
+    width: 100%;
+    text-align: center;
+    font-size: 20px;
+    font-family: sans-serif;
+}
+
+/* Center the entire container on screen */
+.stimulus-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100px;  /* Adjust as needed */
+    width: 100px;   /* Adjust as needed */
+}
+
+/* The image will be centered and responsive */
+.stimulus-container img {
+    /* center the image in the container */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 100%;
+    display: block;
+}
+
+/* Fixation overlayed in the center of the image */
+.stimulus-container .fixation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8%;
+    height: 8%;
+    border: 0.11em solid white;
+    background-color: black;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+    transition: color 0.2s ease;
+}
+
+/* Fixation color change on trial start */
+.stimulus-container .fixation.trial-start {
+    background-color: white;
+    border-color: black;
+}
+
+/* Active fixation color change on response */
+.stimulus-container .fixation.active {
+    background-color: black;
+    border-color: white;
+}
+
+
+
+
+        
