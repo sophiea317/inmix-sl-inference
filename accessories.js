@@ -7,17 +7,19 @@
  */
 
 /**
+ * ========================================================================
+ * @function getStimSample
+ * ========================================================================
  * Gets a sample of stimuli and generates trial sequences for the experiment
  * @param {number} nImg - Total number of available images
  * @param {number} nStim - Number of stimuli to sample
  * @param {number} grps - Number of groups to create
  * @param {number} rep - Number of repetitions for each stimulus
  * @returns {Object} Object containing stimulus data and trial sequences
- * @throws {Error} If parameters are invalid
  */
 export function getStimSample(nImg, nStim, grps, rep) {
 
-  // Validate input parameters
+  // validate input parameters
   if (nStim > nImg) {
       throw new Error("Cannot sample more stimuli than available images");
   }
@@ -152,14 +154,6 @@ export function getStimSample(nImg, nStim, grps, rep) {
           label: "2nd visual stream",
           stimOneback, pairIdx1, pairIdx2
         });
-
-        // check if the 1-back trials are valid for the visual streams
-        //const valid1BackVisStm1 = where(onebackVisStm1, (val, idx) => val === 0 || (val === pairIdx1[0] && trlListVisStm1[idx][0] !== trlListVisStm1[idx - 1][0]));
-        //const valid1BackVisStm2 = where(onebackVisStm2, (val, idx) => val === 0 || (val === pairIdx2[0] && trlListVisStm2[idx][0] !== trlListVisStm2[idx - 1][0]));
-        //if (valid1BackVisStm1.length !== onebackVisStm1.length || valid1BackVisStm2.length !== onebackVisStm2.length) {
-        //  throw new Error("Invalid 1-back trials");
-        //}
-        // check if the 1-back trials are not in the same group
 
         success = true;
       } catch (e) {

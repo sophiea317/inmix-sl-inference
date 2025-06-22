@@ -115,14 +115,6 @@ const welcome = {
         console.log("Experiment started for subject " + subNum + " with counterbalancing number " + expInfo()["cbNum"]);
     }
 };
-//timeline.push(welcome);
-
-const fixation = {
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: '<div style="font-size:60px;">+</div>',
-    choices: "NO_KEYS",
-    trial_duration: 500,
-};
 /*
 TO DO (EXPOSURE):
 - keep fixation on screen throughout entire trial
@@ -131,31 +123,42 @@ TO DO (EXPOSURE):
 - combine visual streams into a single stream with 2 breaks and attention checks
 */
 
+
 const fractImgs1 = subParams.trialsVisStm1.map((stimID, tNum) => {
+    const imgSrc = subParams.fractObj[stimID].src;
+
     return {
-        stimulus: subParams.fractObj[stimID].src,
+        stimulus: `
+        <div class="stimulus-container">
+            <img src="${imgSrc}" />
+            <div class="fixation" ></div>
+        </div>
+        `,
         stim_id: stimID,
         pair_id: subParams.trialIDsVisStm1[tNum],
         is_oneback: subParams.trials1BackVisStm1[tNum] === 1,
+        prompt: subParams.trials1BackVisStm1[tNum] === 1
+        ? "<div class='top-prompt'>1-back</div>"
+        : "<div class='top-prompt'>Press space to continue</div>",
     };
-});
+    });
 
-const fractImgs2 = subParams.trialsVisStm2.map((stimID, tNum) => {
-    return {
-        stimulus: subParams.fractObj[stimID].src,
-        stim_id: stimID,
-        pair_id: subParams.trialIDsVisStm2[tNum],
-        is_oneback: subParams.trials1BackVisStm2[tNum] === 1,
-    };
-});
+// const fractImgs2 = subParams.trialsVisStm2.map((stimID, tNum) => {
+//     return {
+//         stimulus: subParams.fractObj[stimID].src,
+//         stim_id: stimID,
+//         pair_id: subParams.trialIDsVisStm2[tNum],
+//         is_oneback: subParams.trials1BackVisStm2[tNum] === 1,
+//     };
+// });
 
 const VisualStream = {
-    type: jsPsychImageKeyboardResponse,
+    type: jsPsychHtmlKeyboardResponse,
     stimulus: jsPsych.timelineVariable('stimulus'),
+    prompt: jsPsych.timelineVariable('prompt'),
     trial_duration: 1000,
     response_ends_trial: false,
     choices: [' '],
-    prompt: "<p>Press space if the image repeats</p>",
     data: function() {
         return {
             is_oneback: jsPsych.timelineVariable('is_oneback'),
@@ -163,53 +166,73 @@ const VisualStream = {
             pair_id: jsPsych.timelineVariable('pair_id')
         };
     },
+    on_load: function() {
+        // Change fixation color on response
+        const listener = (e) => {
+            console.log("Key pressed: " + e.code);
+            if (e.code === ' ') {
+                const fix = document.querySelector(".fixation");
+                if (fix) fix.classList.add("active");
+            }
+        };
+        document.addEventListener("keydown", listener, { once: true });
+
+        // Clean up listener on trial end
+        jsPsych.pluginAPI.setTimeout(() => {
+            document.removeEventListener("keydown", listener);
+        }, 1000);
+    },
     on_finish: function(data) {
-        // For 1-back trials, correct response is pressing space
-        // For non-1-back trials, correct response is not pressing anything
         const expectedResponse = data.is_oneback ? ' ' : null;
         data.correct = data.response === expectedResponse;
         data.responded = data.response !== null;
-        // log data to console
-        console.log("trial " + data.trial_index
-            + ": \tstim=" + data.stim_id
-            + "\tpair=" + data.pair_id
-            + "\t1-back=" + Number(data.is_oneback)
-            + "\tcorrect=" + Number(data.correct)
-        );
-        // log data to jsPsych data
+
         jsPsych.data.addProperties({
             responded: data.responded,
             correct: data.correct
         });
-        // log data to browser console
 
+        console.log("trial " + data.trial_index
+            + ": \tstim=" + data.stim_id
+            + "\tpair=" + data.pair_id
+            + "\t1-back=" + Number(data.is_oneback)
+            + "\tcorrect=" + Number(data.correct));
     }
 };
 
-const postFixation = {
+const itiFixation = {
     type: jsPsychHtmlKeyboardResponse,
     stimulus: function() {
         const lastTrial = jsPsych.data.get().last(1).values()[0];
-        const color = lastTrial.responded ? "green" : "gray";
-        return `<div style="font-size: 60px; color: ${color};">+</div>`;
+        const color = lastTrial.responded ? "green" : "black";
+        return `
+            <div class="stimulus-container">
+                <div class="fixation" ></div>
+            </div>
+        `;
     },
-    choices: "NO_KEYS",
-    trial_duration: 150,
+    choices: [' '], // space bar to continue
+    response_ends_trial: false,
+    trial_duration: 500,  // or whatever delay you want
 };
+
 
 
 // define visual stream trials
 const procedureVisStm1 = {
-    timeline: [VisualStream, fixation],
+    timeline: [
+        VisualStream, 
+        itiFixation
+    ],
     timeline_variables: fractImgs1
 };
 timeline.push(procedureVisStm1);
 
-const procedureVisStm2 = {
-    timeline: [VisualStream, fixation],
-    timeline_variables: fractImgs2
-};
-timeline.push(procedureVisStm2);
+// const procedureVisStm2 = {
+//     timeline: [VisualStream, itiFixation],
+//     timeline_variables: fractImgs2
+// };
+// timeline.push(procedureVisStm2);
 
 // start the experiment
 jsPsych.run(timeline);
