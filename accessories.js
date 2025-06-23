@@ -17,8 +17,8 @@
 * @param {number} rep - Number of repetitions for each stimulus
 * @returns {Object} Object containing stimulus data and trial sequences
 */
-export function getStimSample(nImg, nStim, grps, rep) {
-  
+export function getStimSample(nImg, nStim, grps, rep, cbBlocks) {
+
   // validate input parameters
   if (nStim > nImg) {
     throw new Error("Cannot sample more stimuli than available images");
@@ -40,9 +40,6 @@ export function getStimSample(nImg, nStim, grps, rep) {
   const pairTrlsVisStm2 = pairRepsVisStm2 * 2;            // total number of paired trials in the 2nd visual stream
   const n1backVisStm1 = pairTrlsVisStm1 * prop1back;      // total number of 1-back trials in the 1st visual stream
   const n1backVisStm2 = pairTrlsVisStm2 * prop1back;      // total number of 1-back trials in the 2nd visual stream
-  // calc the total number 1-backs for each pair in the visual streams
-  const n1backPairsVisStm1 = n1backVisStm1 / nPairsVisStm1;
-  const n1backPairsVisStm2 = n1backVisStm2 / nPairsVisStm2;
   const nTrialsVisStm1 = pairTrlsVisStm1 + n1backVisStm1; // total number of trials in the 1st visual stream
   const nTrialsVisStm2 = pairTrlsVisStm2 + n1backVisStm2; // total number of trials in the 2nd visual stream
   const binsVisStm1 = getbins(pairRepsVisStm1, nBins);    // bins for distributing 1-backs in AB-CD visual stream
@@ -55,8 +52,9 @@ export function getStimSample(nImg, nStim, grps, rep) {
   let fractObj = {};
   let fractGrps = [];
   const groupSize = Math.floor(nStim / grps);
-  // log the number of images and groups
-  console.log("n1backPairsVisStm1: ", n1backPairsVisStm1, "n1backPairsVisStm2: ", n1backPairsVisStm2);
+
+  // dictionary for test ordered pairs
+  const blockTestPairs = {"AB": 0, "BC": 1, "CD": 2};
   
   // initialize output arrays for pairs and trial lists
   const pairsAB = [];
@@ -134,7 +132,49 @@ export function getStimSample(nImg, nStim, grps, rep) {
     pairsVisStm2.push([currGrp[1], currGrp[2]]);
     IDsVisStm2.push(["B", "C"]);
   }
-  
+
+  // direct test pairs
+  let pairIdxAB = sample(range(grps), grps);
+  let pairIdxBC = sample(range(grps), grps);
+  let pairIdxCD = sample(range(grps), grps);
+  let foilIdxAB = generateUniqueOrder(pairIdxAB);
+  let foilIdxBC = generateUniqueOrder(pairIdxBC);
+  let foilIdxCD = generateUniqueOrder(pairIdxCD);
+
+  // indirect test pairs
+  let pairIdxAC = sample(range(grps), grps);
+  let pairIdxBD = sample(range(grps), grps);
+  let pairIdxAD = sample(range(grps), grps);
+  let foilIdxAC = generateUniqueOrder(pairIdxAC);
+  let foilIdxBD = generateUniqueOrder(pairIdxBD);
+  let foilIdxAD = generateUniqueOrder(pairIdxAD);
+
+  // set up direct test 
+  const directTests = [pairsAB, pairsBC, pairsCD];
+
+  // set up direct test pairs
+  const directTestPairIdxs = [pairIdxAB, pairIdxBC, pairIdxCD];
+
+  // set up direct test foils
+  const directTestFoilIdxs = [foilIdxAB, foilIdxBC, foilIdxCD];
+
+  // log the pairs and IDs
+  console.log("Direct test pairs AB: ", directTests[0],
+  "\nDirect test pair indices AB: ", directTestPairIdxs[0],
+  "\nDirect test foil indices AB: ", directTestFoilIdxs[0]);
+
+  console.log("cbBlocks: ", cbBlocks);
+
+  const testPairsList = generateTargetAndFoilPairs(
+    cbBlocks,
+    blockTestPairs,
+    directTests,
+    directTestPairIdxs,
+    directTestFoilIdxs
+  );
+  console.log("Test pairs: ", testPairsList);
+
+
   let excl1backVisStm1, excl1backVisStm2;
   let success = false;
   while (!success) {
@@ -148,7 +188,6 @@ export function getStimSample(nImg, nStim, grps, rep) {
     listIDsVisStm2 = idxVisStm2.map(i => IDsVisStm2[i]);
     list1BackVisStm1 = zeroslike(listArrayVisStm1);
     list1BackVisStm2 = zeroslike(listArrayVisStm2);
-    
     
     grp1BackVisStm1 = [];
     grp1BackVisStm2 = [];
@@ -286,11 +325,13 @@ function combineAndBlockStreams(fractalImgsStream1, fractalImgsStream2) {
         index - (block1.length + block2.length);
         return trial;
       });
-      console.log(block1.length + " trials in block 1. First and last trials:\n", allVisualStreams[0], "\n", allVisualStreams[block1.length - 1]);
-      console.log(block2.length + " trials in block 2. First and last trials:\n", allVisualStreams[block1.length], "\n", allVisualStreams[block1.length + block2.length - 1]);
-      console.log(block3.length + " trials in block 3. First and last trials:\n", allVisualStreams[block1.length + block2.length], "\n", allVisualStreams[allVisualStreams.length - 1]);
-      // log the total number of trials in each block
-      console.log("Total trials in all blocks: ", allVisualStreams.length);
+      if (window.DEBUG) {
+        console.log(block1.length + " trials in block 1. First and last trials:\n", allVisualStreams[0], "\n", allVisualStreams[block1.length - 1]);
+        console.log(block2.length + " trials in block 2. First and last trials:\n", allVisualStreams[block1.length], "\n", allVisualStreams[block1.length + block2.length - 1]);
+        console.log(block3.length + " trials in block 3. First and last trials:\n", allVisualStreams[block1.length + block2.length], "\n", allVisualStreams[allVisualStreams.length - 1]);
+        // log the total number of trials in each block
+        console.log("Total trials in all blocks: ", allVisualStreams.length);
+      }
       // Group trials by block number
       const blockedVisualStreams = {};
       for (const trial of allVisualStreams) {
@@ -321,6 +362,50 @@ function combineAndBlockStreams(fractalImgsStream1, fractalImgsStream2) {
       };
     }
     
+function generateTargetAndFoilPairs(cbBlocks, blockTestPairs, directTests, directTestPairIdxs, directTestFoilIdxs) {
+  const testPairsList = [];
+
+  cbBlocks.forEach((condIdn, blockNum) => {
+    const condIdx = blockTestPairs[condIdn];
+    const currCondDirectTests = directTests[condIdx];
+    const currCondPairIdxs = directTestPairIdxs[condIdx];
+    const currCondFoilIdxs = directTestFoilIdxs[condIdx];
+
+    currCondPairIdxs.forEach((pairNum, blockTNum) => {
+      const pairFid = currCondDirectTests[pairNum];
+      const foilNum = currCondFoilIdxs[blockTNum];
+      const foilFid = [pairFid[0], currCondDirectTests[foilNum][1]];
+
+      testPairsList.push({
+        blockNum: blockNum,
+        condIdn: condIdn,
+        pairType: "target",
+        img1Fid: pairFid[0],
+        img2Fid: pairFid[1],
+        pairNum: pairNum,
+        pairFid: pairFid,
+        img1Num: pairNum,
+        img2Num: pairNum,
+
+      });
+
+      testPairsList.push({
+        blockNum: blockNum,
+        condIdn: condIdn,
+        pairType: "foil",
+        img1Fid: foilFid[0],
+        img2Fid: foilFid[1],
+        pairNum: foilNum,
+        pairFid: foilFid,
+        img1Num: pairNum,
+        img2Num: foilNum,
+      });
+    });
+  });
+
+  return testPairsList;
+}
+
     
     
     // All the following functions are helper functions for the main function above

@@ -10,7 +10,7 @@ const jsPsych = initJsPsych({
 });
 
 const IS_DEBUG_MODE = true;
-const SAVE_DATA_XAMPP = true;
+const SAVE_DATA_XAMPP = false;
 window.DEBUG = false;
 
 
@@ -28,8 +28,8 @@ const expInfo = () => jsPsych.data.dataProperties;
 jsPsych.data.addProperties({
   'expName': EXP_NAME,
   'subject': jsPsych.data.getURLVariable('participant') || 
-  //"0191", // default subject number if not provided in URL
-  String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
+  "0191", // default subject number if not provided in URL
+  //String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
   'session': jsPsych.data.getURLVariable('session') || 
   '001',
   'test': "2-step",                   // ["2-step", "1-step"],
@@ -59,8 +59,8 @@ if (IS_DEBUG_MODE) {
   numStim = 24;
   numGrps = 6;
   numReps = 20;
-  expoStimDur = 10;             
-  expoITI = 10;
+  expoStimDur = 1000;             
+  expoITI = 1000;
   breakDur = 1;
 } else {
   // real parameters for the full experiment
@@ -83,15 +83,10 @@ let subCbBlocks = CbDirectTestSeqs[subCbNum].slice();           // get subject's
 let cbCondition = subCbBlocks.map(item => item[0]).join("-");   // create a string representation of the counterbalancing condition for logging 
 
 // seed the random number generator with subject number
-Math.seedrandom(subNum); 
-if (IS_DEBUG_MODE) {
-  console.log("rand num: " + Math.random()); // log a random number for debugging
-}
-// generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
-const subParams = getStimSample(numImgs, numStim, numGrps, numReps);
+Math.seedrandom(subNum);
 
-// log the stimulus sample and pairs
-console.log("subParams: ", subParams);
+// generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
+const subParams = getStimSample(numImgs, numStim, numGrps, numReps, subCbBlocks);
 
 // add subject parameters to jsPsych data
 jsPsych.data.addProperties({
@@ -99,10 +94,14 @@ jsPsych.data.addProperties({
   'testOrder': cbCondition,
 });
 
+if (window.DEBUG) {
+  console.log("rand num: " + Math.random()); // log a random number for debugging
+  // log the stimulus sample and pairs
+  console.log("subParams: ", subParams);
+}
 // log the subject parameters with expInfo function
 console.log(
   "subject parameters: "
-  + "\nexp name:\t"   + expInfo()["expName"]
   + "\nsubj num:\t"   + expInfo()["subject"]
   + "\nexpo type:\t"  + expInfo()["exposure"]
   + "\ntest type:\t"  + expInfo()["test"]
@@ -234,7 +233,7 @@ const exposureTrial = {
     blockTNum: jsPsych.timelineVariable('blockTNum'),
     streamNum: jsPsych.timelineVariable('streamNum'),
     streamTNum: jsPsych.timelineVariable('streamTNum'),
-    is1Back: jsPsych.timelineVariable('is1Back'),
+    oneBack: jsPsych.timelineVariable('is1Back'),
     condIdn: jsPsych.timelineVariable('condIdn'),
     stimIdn: jsPsych.timelineVariable('stimIdn'),
     pairIdn: jsPsych.timelineVariable('pairIdn'),
@@ -243,8 +242,8 @@ const exposureTrial = {
     pairFid: jsPsych.timelineVariable('pairFid'),
   },
   on_finish: function(data) {
-    const expected = data.is1Back ? ' ' : null;
-    const sum1Back = jsPsych.data.get().filter({trialType: 'exposure', is1Back: true}).count();
+    const expected = data.oneBack ? ' ' : null;
+    const sum1Back = jsPsych.data.get().filter({trialType: 'exposure', oneBack: true}).count();
     data.correct = data.response === expected;
     data.responded = data.response !== null;
 
@@ -257,14 +256,13 @@ const exposureTrial = {
         + ",  stim pair: "      + data.condFid
         + ",  stim idn: "       + data.stimIdn
         + ",  stim: "           + data.stimFid
-        + ",  1-back: "         + data.is1Back
+        + ",  1-back: "         + data.oneBack
         + ",  resp: "           + (data.response !== null ? data.response : 'none')
       );
     }
   }
 };
 const exposureBlocks = subParams.blockedVisualStreams
-console.log("exposure blocks: ", exposureBlocks);
 
 exposureBlocks.forEach((blockTrial, t) => {
   // if saving data to XAMPP, add a data upload trial at the end of each block
@@ -278,38 +276,25 @@ exposureBlocks.forEach((blockTrial, t) => {
         xhr.onreadystatechange = function() {
           if (xhr.readyState === 4) {
             if (xhr.status === 200) {
-              try {
-                const response = JSON.parse(xhr.responseText);
-                if (response.success) {
-                  console.log("Data uploaded successfully:", response.message);
-                } else {
-                  console.error("Data upload failed:", response.message);
-                }
-                done(); // Pass response to the next trial
-              } catch (e) {
-                console.error("Failed to parse response:", e);
-                done(); // Still proceed
-              }
+              const response = JSON.parse(xhr.responseText);
+              done(); // Call done to proceed with the experiment
             } else {
               console.error("Upload failed. Status:", xhr.status);
               done(); // Still proceed
             }
           }
         };
+        xhr.open('POST', 'write_data.php', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        const csvData = jsPsych.data.get().csv();
+        const filename = `sub-${jsPsych.data.dataProperties['subject']}_${jsPsych.data.dataProperties['expName']}_data`;
 
-    xhr.open('POST', 'write_data.php', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-
-    const csvData = jsPsych.data.get().csv();
-    const filename = `sub-${jsPsych.data.dataProperties['subject']}_${jsPsych.data.dataProperties['expName']}_data`;
-
-    xhr.send(JSON.stringify({
-      filedata: csvData,
-      filename: filename
-    }));
-  }
-};
-
+        xhr.send(JSON.stringify({
+          filedata: csvData,
+          filename: filename
+        }));
+      }
+    };
 
     timeline.push({
       timeline: [exposureTrial, xhrDataUpload],
