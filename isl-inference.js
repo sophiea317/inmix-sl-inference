@@ -1,22 +1,19 @@
 // isl-inference.js
 "use strict";
 
-import { getStimSample, responseFeedback, zfill } from "./accessories.js";
+import { getStimSample, responseFeedback } from "./accessories.js";
 
 // initialize jsPsych
 const jsPsych = initJsPsych({
-  on_finish: function() {
-    jsPsych.data.displayData();
-    // Consider adding data saving functionality
-  },
   show_progress_bar: true,
   auto_update_progress_bar: true
 });
 
-const DEBUG = true;
+const IS_DEBUG_MODE = true;
+const SAVE_DATA_XAMPP = true;
 window.DEBUG = false;
 
-// 
+
 // prolific URL
 // const PROLIFIC_URL = "https://app.prolific.co/submissions/complete?cc=YOUR_CODE_HERE";
 
@@ -52,17 +49,19 @@ const CbDirectTestSeqs = [      // order of direct test blocks for each counterb
 const cbPerms = CbDirectTestSeqs.length;      // number of counterbalancing test sequences (6 in this case)
 // define number of stimuli, groups, repetitions, and timing parameters based on DEBUG mode
 let numStim,            // number of stimuli to sample for the experiment
-numGrps,            // number of tetrad groups in the experiment
-numReps,            // number of repetitions of each stimulus in the exposure phase
-expoStimDur,        // duration of each fractal in exposure trials
-expoITI;            // inter-trial interval for exposure trials
-if (DEBUG) { 
+    numGrps,            // number of tetrad groups in the experiment
+    numReps,            // number of repetitions of each stimulus in the exposure phase
+    expoStimDur,        // duration of each fractal in exposure trials
+    expoITI,            // inter-trial interval for exposure trials
+    breakDur;           // break duration in seconds
+if (IS_DEBUG_MODE) { 
   // DEBUG parameters for quick testing
   numStim = 24;
   numGrps = 6;
   numReps = 20;
-  expoStimDur = 75;             
-  expoITI = 75;                 
+  expoStimDur = 10;             
+  expoITI = 10;
+  breakDur = 1;
 } else {
   // real parameters for the full experiment
   numStim = 24;
@@ -76,6 +75,7 @@ if (DEBUG) {
 let expoTrlDur = expoStimDur + expoITI;      // total duration of each exposure trials with fixation
 let expoISI = expoTrlDur*2;                  // inter-stimulus interval for exposure trials
 
+
 // set subject specific parameters
 let subNum = expInfo()["subject"];                              // get subject number from expInfo()
 let subCbNum = (Number.parseInt(subNum) % cbPerms);             // set counterbalancing number based on subject number
@@ -84,7 +84,7 @@ let cbCondition = subCbBlocks.map(item => item[0]).join("-");   // create a stri
 
 // seed the random number generator with subject number
 Math.seedrandom(subNum); 
-if (DEBUG) {
+if (IS_DEBUG_MODE) {
   console.log("rand num: " + Math.random()); // log a random number for debugging
 }
 // generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
@@ -123,27 +123,81 @@ const welcome = {
   on_load: function() {
     // log the start of the experiment
     console.log("Experiment started for subject " + subNum + " with counterbalancing number " + expInfo()["cbNum"]);
+  },
+  data: {
+    trialType: 'welcome',
+    subject: expInfo()["subject"],
+    session: expInfo()["session"],
+    expName: expInfo()["expName"],
+    cbNum: expInfo()["cbNum"],
+    testOrder: expInfo()["testOrder"]
   }
 };
+
+
+// define break screen trial with a countdown timer
+const breakScreen = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<p><strong>Take a short break.</strong><br>
+              <span id="countdown">Time remaining: ${breakDur} seconds</span><br>
+              Press space to continue.</p>`,
+  choices: [' '],
+  post_trial_gap: 500,
+  on_load: function() {
+    let remainingTime = breakDur;
+
+    const countdownEl = document.getElementById('countdown');
+    countdownEl.textContent = `Time remaining: ${remainingTime} seconds`;
+
+    const intervalID = setInterval(() => {
+      remainingTime -= 1;
+      countdownEl.textContent = `Time remaining: ${remainingTime} seconds`;
+
+      if (remainingTime <= 0) {
+        clearInterval(intervalID);
+        jsPsych.finishTrial();
+      }
+    }, 1000); // update every second
+  },
+  data: {
+    trialType: 'break',
+    subject: expInfo()["subject"],
+    session: expInfo()["session"],
+    expName: expInfo()["expName"],
+    cbNum: expInfo()["cbNum"],
+    testOrder: expInfo()["testOrder"]
+  },
+  on_finish: function() {
+    console.log("Break ended for subject " + subNum + " with counterbalancing number " + expInfo()["cbNum"]);
+  }
+};
+
+// define a finished message screen
+const finishedMessage = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<p>Thank you for participating in the experiment!<br>
+             Your data has been saved.</p>
+             <p>Press space to finish.</p>`,
+  choices: [' '],
+  on_load: function() {
+    // log the end of the experiment
+    console.log("Experiment finished for subject " + subNum + " with counterbalancing number " + expInfo()["cbNum"]);
+  }
+};  
+
+if (SAVE_DATA_XAMPP) {
+  console.log("Saving data to XAMPP server at the end of the experiment.");
+  // add a trial to upload data to XAMPP server at the end of the experiment
+
+}
+
+
+
 /*
 TO DO (EXPOSURE):
 - combine visual streams into a single stream with 2 breaks and attention checks
 - allow multiple responses per trial
 */
-
-const breakScreen = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: "<p><strong>Take a short break.</strong><br>Press space to continue.</p>",
-  choices: [' '],
-  post_trial_gap: 500
-};
-
-const numTrialsStream1 = Object.keys(subParams.trialDataVisStm1).length;
-const numTrialsStream2 = Object.keys(subParams.trialDataVisStm2).length;
-console.log("number of trials in stream 1 = " + zfill(numTrialsStream1, 4) + ". should be = " + ((numReps * (numGrps * 2) * 2) + (numReps * (numGrps * 2) * 2 * 0.1)));
-console.log("number of trials in stream 2 = " + zfill(numTrialsStream2, 4) + ". should be = " + ((numReps * numGrps * 2) + (numReps * numGrps * 2 * 0.1)));
-
-
 
 const exposureTrial = {
   type: jsPsychHtmlKeyboardResponse,
@@ -173,28 +227,29 @@ const exposureTrial = {
       document.removeEventListener('keydown', responseListener);
     }, timeListening);
   },
+  save_trial_parameters: true, // save trial parameters for data
   data: {
     trialType: 'exposure',
     blockNum: jsPsych.timelineVariable('blockNum'),
     blockTNum: jsPsych.timelineVariable('blockTNum'),
     streamNum: jsPsych.timelineVariable('streamNum'),
     streamTNum: jsPsych.timelineVariable('streamTNum'),
-    condIdn: jsPsych.timelineVariable('condIdn'),
-    condFid: jsPsych.timelineVariable('condFid'),
     is1Back: jsPsych.timelineVariable('is1Back'),
-    stimFid: jsPsych.timelineVariable('stimFid'),
+    condIdn: jsPsych.timelineVariable('condIdn'),
     stimIdn: jsPsych.timelineVariable('stimIdn'),
     pairIdn: jsPsych.timelineVariable('pairIdn'),
+    condFid: jsPsych.timelineVariable('condFid'),
+    stimFid: jsPsych.timelineVariable('stimFid'),
     pairFid: jsPsych.timelineVariable('pairFid'),
   },
   on_finish: function(data) {
     const expected = data.is1Back ? ' ' : null;
     const sum1Back = jsPsych.data.get().filter({trialType: 'exposure', is1Back: true}).count();
-    
     data.correct = data.response === expected;
     data.responded = data.response !== null;
+
     // Log the trial data
-    if (!window.DEBUG) {
+    if (window.DEBUG) {
       console.log("trial: "       + data.trial_index 
         + ",  1backs: "         + sum1Back
         + ",  (N,T): [block=("   + data.blockNum + ", " + data.blockTNum + "); stream=(" + data.streamNum + ", " + data.streamTNum + ")]"
@@ -212,22 +267,70 @@ const exposureBlocks = subParams.blockedVisualStreams
 console.log("exposure blocks: ", exposureBlocks);
 
 exposureBlocks.forEach((blockTrial, t) => {
-  timeline.push({
-    timeline: [exposureTrial],
-    timeline_variables: blockTrial
-  });
+  // if saving data to XAMPP, add a data upload trial at the end of each block
+  if (SAVE_DATA_XAMPP) {
+    let xhrDataUpload = {
+      type: jsPsychCallFunction,
+      async: true,
+      record_data: false,
+      func: function(done){
+        let xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                  console.log("Data uploaded successfully:", response.message);
+                } else {
+                  console.error("Data upload failed:", response.message);
+                }
+                done(); // Pass response to the next trial
+              } catch (e) {
+                console.error("Failed to parse response:", e);
+                done(); // Still proceed
+              }
+            } else {
+              console.error("Upload failed. Status:", xhr.status);
+              done(); // Still proceed
+            }
+          }
+        };
+
+    xhr.open('POST', 'write_data.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+
+    const csvData = jsPsych.data.get().csv();
+    const filename = `sub-${jsPsych.data.dataProperties['subject']}_${jsPsych.data.dataProperties['expName']}_data`;
+
+    xhr.send(JSON.stringify({
+      filedata: csvData,
+      filename: filename
+    }));
+  }
+};
+
+
+    timeline.push({
+      timeline: [exposureTrial, xhrDataUpload],
+      timeline_variables: blockTrial
+    });
+  } else {
+    timeline.push({
+      timeline: [exposureTrial],
+      timeline_variables: blockTrial
+    });
+  }
   // Add a break after each block, except the last one
   if (t < exposureBlocks.length - 1) {
     timeline.push(breakScreen);
   }
 });
 
+// at the end of experiment, add the finished message
+timeline.push(finishedMessage);
 
-// const experimentProcedure = {            
-//     timeline: [exposureTrial],
-//     timeline_variables: subParams.blockedVisualStreams
-// };
-// timeline.push(experimentProcedure);
+
 
 // start the experiment
 jsPsych.run(timeline);
