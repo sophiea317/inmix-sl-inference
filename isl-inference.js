@@ -312,6 +312,10 @@ exposureBlocks.forEach((blockTrial, t) => {
   }
 });
 
+
+
+
+
 // at the end of experiment, add the finished message
 timeline.push(finishedMessage);
 

@@ -158,13 +158,7 @@ export function getStimSample(nImg, nStim, grps, rep, cbBlocks) {
   // set up direct test foils
   const directTestFoilIdxs = [foilIdxAB, foilIdxBC, foilIdxCD];
 
-  // log the pairs and IDs
-  console.log("Direct test pairs AB: ", directTests[0],
-  "\nDirect test pair indices AB: ", directTestPairIdxs[0],
-  "\nDirect test foil indices AB: ", directTestFoilIdxs[0]);
-
-  console.log("cbBlocks: ", cbBlocks);
-
+  // set up direct test pairs
   const testPairsList = generateTargetAndFoilPairs(
     cbBlocks,
     blockTestPairs,
@@ -173,6 +167,9 @@ export function getStimSample(nImg, nStim, grps, rep, cbBlocks) {
     directTestFoilIdxs
   );
   console.log("Test pairs: ", testPairsList);
+
+  const directTestTrials = generateRepeatedTestTrials(testPairsList, fractObj);
+  console.log("direct test trials: ", directTestTrials);
 
 
   let excl1backVisStm1, excl1backVisStm2;
@@ -235,6 +232,7 @@ export function getStimSample(nImg, nStim, grps, rep, cbBlocks) {
     trialsVisStm1, trials1BackVisStm1, trialIDsVisStm1, trialDataVisStm1,
     trialsVisStm2, trials1BackVisStm2, trialIDsVisStm2, trialDataVisStm2,
     listArrayVisStm1, list1BackVisStm1, listArrayVisStm2, list1BackVisStm2, 
+    testPairsList, directTests, directTestPairIdxs, directTestFoilIdxs
   };
 }
 
@@ -255,14 +253,132 @@ function generateFractalStream(fractObj, trialIDs, trialData, streamNum, streamI
       stimFid: stimID,
       pairIdn: data.pairIdn,
       pairFid: data.pairFid,
-      stimulus: `
-          <div class="stimulus-container">
-              <img id="stim-img" src="${fractObj[stimID].src}" />
-              <div class="fixation"></div>
-          </div>
-      `,
+      stimulus: stimulus(fractObj, stimID),
     };
   });
+}
+
+function generateRepeatedTestTrials(testPairs, fractObj) {
+  const targets = testPairs.filter(p => p.pairType === 'target');
+  const foils = testPairs.filter(p => p.pairType === 'foil');
+  const shuffledFoils = shuffle(foils.slice());
+
+  const testTimeline = [];
+  let foilIndex = 0;
+
+  targets.forEach((target, i) => {
+    // Helper to get a foil and cycle if necessary
+    const getFoil = () => {
+      const foil = shuffledFoils[foilIndex % shuffledFoils.length];
+      foilIndex++;
+      return foil;
+    };
+
+    const foil1 = getFoil();
+    const foil2 = getFoil();
+
+    // --- Trial 1: target first ---
+    testTimeline.push(...createTestTrials(target, foil1, fractObj, i));
+
+    // --- Trial 2: foil first ---
+    testTimeline.push(...createTestTrials(target, foil2, fractObj, i));
+  });
+
+  return testTimeline;
+
+  function createTestTrials(pair1, pair2, fractObj, tNum) {
+    const firstIsTarget = Math.random() < 0.5;
+    const firstPair = firstIsTarget ? pair1 : pair2;
+    const secondPair = firstIsTarget ? pair2 : pair1;
+
+    return [
+      // Initial fixation before first image
+      makeFixationTrial(500, tNum),
+
+      // First pair
+      makeImageTrial(firstPair.img1Fid, fractObj,firstPair, tNum),
+      makeFixationTrial(500, tNum),
+      makeImageTrial(firstPair.img2Fid, fractObj,firstPair, tNum),
+
+      // Between-pair fixation
+      makeFixationTrial(1000, tNum),
+
+      // Second pair
+      makeImageTrial(secondPair.img1Fid, fractObj,secondPair, tNum),
+      makeFixationTrial(500, tNum),
+      makeImageTrial(secondPair.img2Fid, fractObj,secondPair, tNum),
+
+      // Response screen
+      {
+        blockTNum: tNum,
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+          <div class='prompt'>
+            Which pair was familiar?<br><br>
+            Press <strong>F</strong> for the <em>first</em> pair<br>
+            Press <strong>J</strong> for the <em>second</em> pair
+          </div>
+        `,
+        choices: ['f', 'j'],
+        data: {
+          trialType: "test",
+          targetFirst: firstIsTarget,
+          targetPair: firstIsTarget ? pair1 : pair2,
+          foilPair: firstIsTarget ? pair2 : pair1,
+        },
+        on_finish: function(data) {
+          data.correct = (data.response === 'f' && data.targetFirst) || (data.response === 'j' && !data.targetFirst);
+        }
+      }
+    ];
+  }
+
+  // Helper to render the stimulus image
+  function makeImageTrial(stimID, fractObj, data, tNum) {
+    return {
+      blockTNum: tNum,
+      stimID: stimID,
+      blockNum: data.blockNum,
+      choices: "NO_KEYS",
+      trial_duration: 1000,
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="stimulus-container">
+          <img src="${fractObj[stimID].src}" id="stim-img" />
+          <div class="fixation"></div>
+        </div>
+      `,
+      data: {
+        ...data
+      }
+    };
+  }
+
+  // Helper to render a fixation cross
+  function makeFixationTrial(duration = 500, tNum) {
+    return {
+      blockTNum: tNum,
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="stimulus-container">
+          <div class="fixation"></div>
+        </div>
+      `,
+      choices: "NO_KEYS",
+      trial_duration: duration
+    };
+  }
+
+
+}
+
+function stimulus(fractalObj, stimID) {
+  return `
+      <div class="stimulus-container">
+          <img src="${fractalObj[stimID].src}" id="stim-img" />
+          <div class="fixation"></div>
+      </div>
+  `;
 }
 
 function combineAndBlockStreams(fractalImgsStream1, fractalImgsStream2) {
@@ -278,7 +394,7 @@ function combineAndBlockStreams(fractalImgsStream1, fractalImgsStream2) {
   const [pairIdx, pairEnd] = lastTrial.trialPair.split("/").map(Number);
   
   if (window.DEBUG) {
-    console.log("=== Separating Stream1 ===");
+    console.log("=== Separating Stream 1 ===");
     console.log("block 1 last trial and block 2 first trial:\n", lastTrial,"\n", block2[0],
       "\nblock 1 size = ", block1.length, ", block 2 size = ", block2.length);
     }
