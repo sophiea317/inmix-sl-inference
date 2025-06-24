@@ -10,8 +10,8 @@ const jsPsych = initJsPsych({
 });
 
 const IS_DEBUG_MODE = true;
-const SAVE_DATA_XAMPP = false;
-window.DEBUG = false;
+const SAVE_DATA_XAMPP = true;
+window.DEBUG = true;
 
 
 // prolific URL
@@ -28,8 +28,8 @@ const expInfo = () => jsPsych.data.dataProperties;
 jsPsych.data.addProperties({
   'expName': EXP_NAME,
   'subject': jsPsych.data.getURLVariable('participant') || 
-  "0191", // default subject number if not provided in URL
-  //String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
+  //"0191", // default subject number if not provided in URL
+  String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
   'session': jsPsych.data.getURLVariable('session') || 
   '001',
   'test': "2-step",                   // ["2-step", "1-step"],
@@ -59,9 +59,9 @@ if (IS_DEBUG_MODE) {
   numStim = 24;
   numGrps = 6;
   numReps = 20;
-  expoStimDur = 1000;             
-  expoITI = 1000;
-  breakDur = 1;
+  expoStimDur = 10;             
+  expoITI = 10;
+  breakDur = 0.5;
 } else {
   // real parameters for the full experiment
   numStim = 24;
@@ -187,9 +187,7 @@ const finishedMessage = {
 if (SAVE_DATA_XAMPP) {
   console.log("Saving data to XAMPP server at the end of the experiment.");
   // add a trial to upload data to XAMPP server at the end of the experiment
-
 }
-
 
 
 /*
@@ -226,25 +224,32 @@ const exposureTrial = {
       document.removeEventListener('keydown', responseListener);
     }, timeListening);
   },
-  save_trial_parameters: true, // save trial parameters for data
+  
   data: {
     trialType: 'exposure',
     blockNum: jsPsych.timelineVariable('blockNum'),
     blockTNum: jsPsych.timelineVariable('blockTNum'),
-    streamNum: jsPsych.timelineVariable('streamNum'),
-    streamTNum: jsPsych.timelineVariable('streamTNum'),
-    oneBack: jsPsych.timelineVariable('is1Back'),
-    condIdn: jsPsych.timelineVariable('condIdn'),
+    blockIdn: jsPsych.timelineVariable('pairIdn'),
+    pairFid: jsPsych.timelineVariable('pairFid'),
+    pairNum: jsPsych.timelineVariable('pairNum'),
+    stimFid: jsPsych.timelineVariable('stimFid'),
+    img1Fid: jsPsych.timelineVariable('img1Fid'),
+    img2Fid: jsPsych.timelineVariable('img2Fid'),
     stimIdn: jsPsych.timelineVariable('stimIdn'),
-    pairIdn: jsPsych.timelineVariable('pairIdn'),
-    condFid: jsPsych.timelineVariable('condFid'),
+    img1Idn: jsPsych.timelineVariable('img1Idn'),
+    img2Idn: jsPsych.timelineVariable('img2Idn'),
     stimFid: jsPsych.timelineVariable('stimFid'),
     pairFid: jsPsych.timelineVariable('pairFid'),
+    streamIdn: jsPsych.timelineVariable('streamId'),
+    streamNum: jsPsych.timelineVariable('streamNum'),
+    streamTNum: jsPsych.timelineVariable('streamTNum'),
+    oneback: jsPsych.timelineVariable('oneback'),
   },
   on_finish: function(data) {
-    const expected = data.oneBack ? ' ' : null;
-    const sum1Back = jsPsych.data.get().filter({trialType: 'exposure', oneBack: true}).count();
-    data.correct = data.response === expected;
+    const expected = data.oneback ? ' ' : NaN;
+    const sum1Back = jsPsych.data.get().filter({trialType: 'exposure', oneback: true}).count();
+    data.correctResp = data.oneback ? 'space' : null;
+    data.trialAcc = data.response === expected ? 1 : 0;;
     data.responded = data.response !== null;
 
     // Log the trial data
@@ -252,18 +257,16 @@ const exposureTrial = {
       console.log("trial: "       + data.trial_index 
         + ",  1backs: "         + sum1Back
         + ",  (N,T): [block=("   + data.blockNum + ", " + data.blockTNum + "); stream=(" + data.streamNum + ", " + data.streamTNum + ")]"
-        + ",  cond: "           + data.condIdn
-        + ",  stim pair: "      + data.condFid
         + ",  stim idn: "       + data.stimIdn
         + ",  stim: "           + data.stimFid
-        + ",  1-back: "         + data.oneBack
+        + ",  1-back: "         + data.oneback
         + ",  resp: "           + (data.response !== null ? data.response : 'none')
       );
     }
   }
 };
 const exposureBlocks = subParams.blockedVisualStreams
-
+console.log("exposureBlocks: ", exposureBlocks);
 exposureBlocks.forEach((blockTrial, t) => {
   // if saving data to XAMPP, add a data upload trial at the end of each block
   if (SAVE_DATA_XAMPP) {
@@ -295,12 +298,13 @@ exposureBlocks.forEach((blockTrial, t) => {
         }));
       }
     };
-
     timeline.push({
       timeline: [exposureTrial, xhrDataUpload],
       timeline_variables: blockTrial
     });
   } else {
+    console.log("exposureTrial", exposureTrial);
+    console.log("blockTrial", blockTrial);
     timeline.push({
       timeline: [exposureTrial],
       timeline_variables: blockTrial
@@ -314,6 +318,68 @@ exposureBlocks.forEach((blockTrial, t) => {
 
 
 
+// define the test trial  
+const testBlocks = subParams.directTestTrialsTimeline;
+console.log("testBlocks: ", testBlocks);
+Object.keys(testBlocks).forEach((key, t) => {
+  const currentBlockTrials = testBlocks[key];
+  console.log(`Processing test block: ${key}`, currentBlockTrials);
+
+  const testTrial = groupTrialsByBlockTNum(currentBlockTrials);
+  console.log("testProcedureTimeline: ", testTrial);
+
+  if (SAVE_DATA_XAMPP) {
+    // Data upload trial
+    const xhrDataUpload = {
+      type: jsPsychCallFunction,
+      async: true,
+      record_data: false,
+      func: function (done) {
+        let xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              const response = JSON.parse(xhr.responseText);
+              done(); // Continue experiment
+            } else {
+              console.error("Upload failed. Status:", xhr.status);
+              done(); // Still continue
+            }
+          }
+        };
+        xhr.open('POST', 'write_data.php', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        const csvData = jsPsych.data.get().csv();
+        const filename = `sub-${jsPsych.data.dataProperties['subject']}_${jsPsych.data.dataProperties['expName']}_data`;
+        xhr.send(JSON.stringify({ filedata: csvData, filename: filename }));
+      }
+    };
+
+    timeline.push(...testTrial, xhrDataUpload);
+  } else {
+    timeline.push(...testTrial);
+  }
+
+});
+
+
+
+function groupTrialsByBlockTNum(flatTrials) {
+  const grouped = {};
+
+  flatTrials.forEach(trial => {
+    const blockTNum = trial.blockTNum;
+    if (!grouped[blockTNum]) {
+      grouped[blockTNum] = [];
+    }
+    grouped[blockTNum].push(trial);
+  });
+
+  // Convert to jsPsych timeline format
+  return Object.values(grouped).map(trialGroup => ({
+    timeline: trialGroup
+  }));
+}
 
 
 // at the end of experiment, add the finished message
