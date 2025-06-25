@@ -38,14 +38,17 @@ export function getStimSample(nImg, nStim, grps, rep, cbBlocks) {
   const pairRepsVisStm2 = nPairsVisStm2 * rep;            // total number of trials in the 2nd visual stream
   const pairTrlsVisStm1 = pairRepsVisStm1 * 2;            // total number of paired trials in the 1st visual stream
   const pairTrlsVisStm2 = pairRepsVisStm2 * 2;            // total number of paired trials in the 2nd visual stream
-  const n1backVisStm1 = pairTrlsVisStm1 * prop1back;      // total number of 1-back trials in the 1st visual stream
-  const n1backVisStm2 = pairTrlsVisStm2 * prop1back;      // total number of 1-back trials in the 2nd visual stream
-  const nTrialsVisStm1 = pairTrlsVisStm1 + n1backVisStm1; // total number of trials in the 1st visual stream
-  const nTrialsVisStm2 = pairTrlsVisStm2 + n1backVisStm2; // total number of trials in the 2nd visual stream
-  const binsVisStm1 = getbins(pairRepsVisStm1, nBins);    // bins for distributing 1-backs in AB-CD visual stream
-  const binsVisStm2 = getbins(pairRepsVisStm2, nBins);    // bins for distributing 1-backs in BC visual stream
   const pairIdx1 = [1, 0];                                // 1-back trial indices for the 1st image in the pair
   const pairIdx2 = [0, 1];                                // 1-back trial indices for the 2nd image in the pair
+
+  // calculate total number of trials in each visual stream
+  const tNumVisStm1 = pairTrlsVisStm1 + (pairTrlsVisStm1 * prop1back); // total number of trials in the 1st visual stream
+  const tNumVisStm2 = pairTrlsVisStm2 + (pairTrlsVisStm2 * prop1back); // total number of trials in the 2nd visual stream
+
+  // generate bins for distributing 1-back trials for each visual stream
+  const binsVisStm1 = getbins(pairRepsVisStm1, nBins);    // bins for distributing 1-backs in AB-CD visual stream
+  const binsVisStm2 = getbins(pairRepsVisStm2, nBins);    // bins for distributing 1-backs in BC visual stream
+
   let array = range(nImg + 1, 1);
   let imgid = sample(array, nStim);
   let fractIDs = [];
@@ -94,8 +97,8 @@ export function getStimSample(nImg, nStim, grps, rep, cbBlocks) {
     + "=> " + nPairsVisStm2 + "\tnumber of pairs in the BC stream\n"
     + "=> " + pairRepsVisStm1 + "\ttotal paired trials in the AB-CD stream\n"
     + "=> " + pairRepsVisStm2 + "\ttotal paired trials in the BC stream\n"
-    + zfill(nTrialsVisStm1, 4) + "\ttrials in stream 1:  " + pairTrlsVisStm1 + " pair trials  +  " + n1backVisStm1 + " 1-back trials\n"
-    + zfill(nTrialsVisStm2, 4) + "\ttrials in stream 2:  " + pairTrlsVisStm2 + " pair trials  +  " + n1backVisStm2 + " 1-back trials\n"
+    + zfill(tNumVisStm1, 4) + "\ttrials in stream 1:  " + pairTrlsVisStm1 + " pair trials  +  " + (pairTrlsVisStm1 * prop1back) + " 1-back trials\n"
+    + zfill(tNumVisStm2, 4) + "\ttrials in stream 2:  " + pairTrlsVisStm2 + " pair trials  +  " + (pairTrlsVisStm2 * prop1back) + " 1-back trials\n"
   );
   
   console.log(

@@ -1,7 +1,7 @@
 // isl-inference.js
 "use strict";
 
-import { getStimSample, responseFeedback } from "./accessories.js";
+import { getStimSample, responseFeedback } from "./utils.js";
 
 // initialize jsPsych
 const jsPsych = initJsPsych({
@@ -10,8 +10,8 @@ const jsPsych = initJsPsych({
 });
 
 const IS_DEBUG_MODE = true;
-const SAVE_DATA_XAMPP = true;
-window.DEBUG = true;
+const SAVE_DATA_XAMPP = false;
+window.DEBUG = false;
 
 
 // prolific URL
@@ -28,8 +28,8 @@ const expInfo = () => jsPsych.data.dataProperties;
 jsPsych.data.addProperties({
   'expName': EXP_NAME,
   'subject': jsPsych.data.getURLVariable('participant') || 
-  //"0191", // default subject number if not provided in URL
-  String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
+  "0191", // default subject number if not provided in URL
+  //String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
   'session': jsPsych.data.getURLVariable('session') || 
   '001',
   'test': "2-step",                   // ["2-step", "1-step"],
@@ -93,7 +93,7 @@ jsPsych.data.addProperties({
   'cbNum': subCbNum + 1, // counterbalancing number (1-6)
   'testOrder': cbCondition,
 });
-
+console.log("rand num: " + Math.random()); // log a random number for debugging
 if (window.DEBUG) {
   console.log("rand num: " + Math.random()); // log a random number for debugging
   // log the stimulus sample and pairs
