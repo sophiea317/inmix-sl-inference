@@ -363,6 +363,7 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           pairTwo: pairTwo,
           correctResp: pair1Type === 'target' ? 'f' : 'j',
         };
+        console.log("trlInfo", trlInfo);
         return trlInfo;
       });
 
@@ -422,8 +423,8 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
         data: {
           ...testTrial,
           trialType: "test",
-          firstPair: testTrial.firstPairType,
-          secondPair: testTrial.secondPairType,
+          pair1Type: testTrial.pair1Type,
+          pair2Type: testTrial.pair2Type,
           correctResp: testTrial.correctResp,
         },
         on_finish: function(data) {

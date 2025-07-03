@@ -398,12 +398,14 @@ const testTrial = {
       trial_duration: IS_DEBUG_MODE ? 10 : null,
       data: {
         trialType: 'test',
-        condIdn: jsPsych.timelineVariable('condIdn'),
+        blockIdn: jsPsych.timelineVariable('blockIdn'),
         blockNum: jsPsych.timelineVariable('blockNum'),
         blockTNum: jsPsych.timelineVariable('blockTNum'),
         blockRepNum: jsPsych.timelineVariable('blockRepNum'),
-        firstPairType: jsPsych.timelineVariable('firstPairType'),
-        secondPairType: jsPsych.timelineVariable('secondPairType'),
+        pair1Type: jsPsych.timelineVariable('pair1Type'),
+        pair2Type: jsPsych.timelineVariable('pair2Type'),
+        pair1Fid: jsPsych.timelineVariable('pair1Fids'),
+        pair2Fid: jsPsych.timelineVariable('pair2Fids'),
         correctResp: jsPsych.timelineVariable('correctResp'),
       },
       on_finish: function(data) {
@@ -412,8 +414,9 @@ const testTrial = {
         if (IS_DEBUG_MODE) {
           console.log("trial:", data.trial_index,
                       " blockTNum:", data.blockTNum,
-                      " blockNum:", data.blockNum,
-                      " pairType:", data.firstPairType + "+" + data.secondPairType);
+                      "\t blockNum:", data.blockNum,
+                      "\t pairFid:", data.pair1Fid + " + " + data.pair2Fid,
+                      "\t pairOrder:", data.pair1Type + " + " + data.pair2Type);
         }
       }
     }
