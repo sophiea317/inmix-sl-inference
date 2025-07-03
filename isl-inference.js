@@ -53,7 +53,10 @@ let numStim,            // number of stimuli to sample for the experiment
     numReps,            // number of repetitions of each stimulus in the exposure phase
     expoStimDur,        // duration of each fractal in exposure trials
     expoITI,            // inter-trial interval for exposure trials
-    breakDur;           // break duration in seconds
+    breakDur,           // break duration in seconds
+    testStimDur,        // duration of each fractal in test trials
+    testITI,            // inter-trial interval for test trials
+    testISI;            // inter-stimulus interval for test trials
 if (IS_DEBUG_MODE) { 
   // DEBUG parameters for quick testing
   numStim = 24;
