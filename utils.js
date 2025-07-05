@@ -92,8 +92,8 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
     + "=> " + nPairsVisStm2 + "\tnumber of pairs in the BC stream\n"
     + "=> " + pairRepsVisStm1 + "\ttotal paired trials in the AB-CD stream\n"
     + "=> " + pairRepsVisStm2 + "\ttotal paired trials in the BC stream\n"
-    + zfill(tNumVisStm1, 4) + "\ttrials in stream 1:  " + pairTrlsVisStm1 + " pair trials  +  " + (pairTrlsVisStm1 * prop1back) + " 1-back trials\n"
-    + zfill(tNumVisStm2, 4) + "\ttrials in stream 2:  " + pairTrlsVisStm2 + " pair trials  +  " + (pairTrlsVisStm2 * prop1back) + " 1-back trials\n"
+    + zfill(tNumVisStm1, 4) + "\ttrials in stream 1:  " + pairTrlsVisStm1 + " single image trials  +  " + (pairTrlsVisStm1 * prop1back) + " 1-back trials\n"
+    + zfill(tNumVisStm2, 4) + "\ttrials in stream 2:  " + pairTrlsVisStm2 + " single image trials  +  " + (pairTrlsVisStm2 * prop1back) + " 1-back trials\n"
   );
   
   console.log(
