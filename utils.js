@@ -18,7 +18,7 @@
 * @returns {Object} Object containing stimulus data and trial sequences
 */
 
-function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
+function getSubjectParams(nImg, nStim, grps, rep, cbBlocks, testType) {
   // validate input parameters
   if (nStim % grps !== 0) {
     throw new Error("Number of stimuli must be divisible by number of groups");
@@ -61,6 +61,9 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
   const pairNumAB = [];
   const pairNumBC = [];
   const pairNumCD = [];
+  const pairNumAC = [];
+  const pairNumBD = [];
+  const pairNumAD = [];
   const pairsVisStm1 = [];
   const IDsVisStm1 = [];
   const pairsVisStm2 = [];
@@ -77,13 +80,14 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
   // log the experiment parameters
   console.log(
     "Experiment parameters: \n"
-    + "=> " + nImg + "\ttotal number of images available\n"
-    + "=> " + nStim + "\timgs sampled\n"
-    + "=> " + grps + "\tAB-BC-CD groups\n"
-    + "=> " + rep + "\tstimulus reps during exposure\n"
-    + "=> " + prop1back * 100 + "%\tof trials will be 1-back trials\n"
-    + "=> " + stimOneback + "\t1-back trials for each pair\n"
-    + "=> " + nBins + "\tnumber of bins for distributing 1-back trials\n"
+    + "=> " + nImg + "\t\ttotal number of images available\n"
+    + "=> " + nStim + "\t\timgs sampled\n"
+    + "=> " + grps + "\t\tAB-BC-CD groups\n"
+    + "=> " + rep + "\t\tstimulus reps during exposure\n"
+    + "=> " + prop1back * 100 + "%\t\tof trials will be 1-back trials\n"
+    + "=> " + stimOneback + "\t\t1-back trials for each pair\n"
+    + "=> " + nBins + "\t\tnumber of bins for distributing 1-back trials\n"
+    + "=> " + testType + "\ttest type\n"
   );
   
   console.log(
@@ -129,6 +133,9 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
     pairNumAB.push(i);
     pairNumBC.push(i);
     pairNumCD.push(i);
+    pairNumAC.push(i);
+    pairNumBD.push(i);
+    pairNumAD.push(i);
     pairsAB.push([currGrp[0], currGrp[1]]);
     pairsBC.push([currGrp[1], currGrp[2]]);
     pairsCD.push([currGrp[2], currGrp[3]]);
@@ -164,7 +171,7 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
 
   // set up direct test 
   const directTests = [pairsAB, pairsBC, pairsCD];
-  const testPairNums = [pairNumAB, pairNumBC, pairNumCD];
+  const directTestPairNums = [pairNumAB, pairNumBC, pairNumCD];
 
   // set up direct test pairs
   const directTestPairIdxs = [pairIdxAB, pairIdxBC, pairIdxCD];
@@ -173,16 +180,63 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
   const directTestFoilIdxs = [foilIdxAB, foilIdxBC, foilIdxCD];
 
   // set up direct test pairs
-  const testPairsList = generateTargetAndFoilPairs(
+  const directTestPairsList = generateTargetAndFoilPairs(
     cbBlocks,
     blockTestPairs,
     directTests,
-    testPairNums,
+    directTestPairNums,
     directTestPairIdxs,
     directTestFoilIdxs
   );
 
-  const { trialsTimeline: directTestTrialsTimeline, testTrials: directTestTrials } = generateRepeatedTestTrials(testPairsList, fractObj);
+  console.log("testType:", testType);
+  console.log("testType === 2-step:", testType === "2-step");
+  let indirectTestPairsList; 
+  let indirectTests; 
+  let indirectTestPairNums;
+  let indirectTestPairIdxs;
+  let indirectTestFoilIdxs;
+
+  // set up indirect test pairs
+  if (testType === "2-step") {
+    indirectTests = [pairsAD];
+    indirectTestPairNums = [pairNumAD];
+
+    // set up indirect test pairs
+    indirectTestPairIdxs = [pairIdxAD];
+
+    // set up indirect test foils
+    indirectTestFoilIdxs = [foilIdxAD];
+
+    // set up indirect test trial pairs
+    indirectTestPairsList = generateTargetAndFoilPairs(
+      ["AD"],
+      {"AD": 0},
+      indirectTests,
+      indirectTestPairNums,
+      indirectTestPairIdxs,
+      indirectTestFoilIdxs
+    );
+  } else {
+    indirectTests = [pairsAC, pairsBD];
+    indirectTestPairNums = [pairNumAC, pairNumBD];
+    indirectTestPairIdxs = [pairIdxAC, pairIdxBD];
+    indirectTestFoilIdxs = [foilIdxAC, foilIdxBD];
+
+    // set up indirect test trial pairs
+    indirectTestPairsList = generateTargetAndFoilPairs(
+      ["AC", "BD"],
+      {"AC": 0, "BD": 0},
+      indirectTests,
+      indirectTestPairNums,
+      indirectTestPairIdxs,
+      indirectTestFoilIdxs,
+      false
+    );
+  }
+  const { trialsTimeline: directTestTrialsTimeline, testTrials: directTestTrials } = generateRepeatedTestTrials(directTestPairsList, fractObj);
+  const { trialsTimeline: indirectTestTrialsTimeline, testTrials: indirectTestTrials } = generateRepeatedTestTrials(indirectTestPairsList, fractObj);
+
 
   let excl1backVisStm1, excl1backVisStm2;
   let success = false;
@@ -246,8 +300,9 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks) {
     trialsVisStm1, trials1BackVisStm1, trialIDsVisStm1, trialDataVisStm1,
     trialsVisStm2, trials1BackVisStm2, trialIDsVisStm2, trialDataVisStm2,
     listArrayVisStm1, list1BackVisStm1, listArrayVisStm2, list1BackVisStm2, 
-    testPairsList, directTestTrialsTimeline, directTestTrials,
-    directTests, directTestPairIdxs, directTestFoilIdxs
+    testPairsList: directTestPairsList, directTestTrialsTimeline, directTestTrials,
+    directTests, directTestPairIdxs, directTestFoilIdxs, indirectTestPairsList,
+    indirectTestTrialsTimeline, indirectTestTrials, indirectTests, indirectTestPairIdxs, indirectTestFoilIdxs
   };
 }
 
@@ -284,15 +339,25 @@ function generateFractalStream(fractObj, trialIDs, trialData, trialPairNums, str
       pairIdn: data.pairIdn,
       pairFid: data.pairFid,
       pairNum: pairNum,
+      pairType: data.pairType,
+      stimPosition: (stimID === data.img1Fid) ? 'first' :
+                    (stimID === data.img2Fid) ? 'second' : 'unknown',
       stimulus: stimulus(fractObj, stimID),
     };
   });
 }
 
+
+
+
 function generateRepeatedTestTrials(testPairs, fractObj) {
+  const numReps = 2; // number of repetitions for each foil set
+  const testTrials = {};
+  const trialsTimeline = {};
   // Group foils by keyIdn
   const targsCondGrped = {};
   const foilsCondGrped = {};
+  console.log("testPairs:", testPairs);
 
   testPairs.forEach(p => {
     if (p.pairType === 'foil') {
@@ -314,10 +379,7 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
     }
   });
 
-  const numReps = 2; // number of repetitions for each foil set
-  const testTrials = {};
 
-  // get test trials by looping over the condIdn keys
   Object.keys(targsCondGrped).forEach((key, b) => {
     testTrials[key] = [];
     console.log("key:", key, "b:", b);
@@ -354,6 +416,15 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           pair1Img2: stimulus(fractObj,pairOne.img2Fid),
           pair2Img1: stimulus(fractObj,pairTwo.img1Fid),
           pair2Img2: stimulus(fractObj,pairTwo.img2Fid),
+          pair1Idn: pairOne.pairIdn,
+          pair2Idn: pairTwo.pairIdn,
+          pair1Img1Fid: pairOne.img1Fid,
+          pair1Img2Fid: pairOne.img2Fid,
+          pair2Img1Fid: pairTwo.img1Fid,
+          pair2Img2Fid: pairTwo.img2Fid,
+          targPosition: pair1Type === "target" ? "first" : "second",
+          foilPosition: pair1Type === "foil" ? "first" : "second",
+          trialLabel: `${pair1Type.toUpperCase()}-${pair2Type.toUpperCase()}`,
           targFid: targFid,
           foilFid: foilFid,
           pairFids: [pairOne.pairFid, pairTwo.pairFid],
@@ -363,7 +434,6 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           pairTwo: pairTwo,
           correctResp: pair1Type === 'target' ? 'f' : 'j',
         };
-        console.log("trlInfo", trlInfo);
         return trlInfo;
       });
 
@@ -371,7 +441,6 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
     };
   });
   //stimulus: stimulus(fractObj, stimID),
-  const trialsTimeline = {};
 
   Object.keys(testTrials).forEach((key, i) => {
     trialsTimeline[key] = [];
@@ -392,20 +461,20 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
 
     return [
       // Initial fixation before first image
-      makeFixationTrial(500, tNum),
+      makeFixationTrial(500, tNum, testTrial),
 
       // First pair
-      makeImageTrial(pairOne.img1Fid, fractObj, pairOne, tNum, "pair1-img1"),
-      makeFixationTrial(500, tNum),
-      makeImageTrial(pairOne.img2Fid, fractObj, pairOne, tNum, "pair1-img2"),
+      makeImageTrial(pairOne.img1Fid, fractObj, pairOne, tNum, testTrial,"pair1-img1"),
+      makeFixationTrial(500, tNum, testTrial),
+      makeImageTrial(pairOne.img2Fid, fractObj, pairOne, tNum, testTrial,"pair1-img2"),
 
       // Between-pair fixation
-      makeFixationTrial(1200, tNum),
+      makeFixationTrial(1200, tNum, testTrial),
 
       // Second pair
-      makeImageTrial(pairTwo.img1Fid, fractObj, pairTwo, tNum, "pair2-img1"),
-      makeFixationTrial(500, tNum),
-      makeImageTrial(pairTwo.img2Fid, fractObj, pairTwo, tNum, "pair2-img2"),
+      makeImageTrial(pairTwo.img1Fid, fractObj, pairTwo, tNum, testTrial,"pair2-img1"),
+      makeFixationTrial(500, tNum, testTrial),
+      makeImageTrial(pairTwo.img2Fid, fractObj, pairTwo, tNum, testTrial,"pair2-img2"),
 
       // Response screen
       {
@@ -426,16 +495,17 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           pair1Type: testTrial.pair1Type,
           pair2Type: testTrial.pair2Type,
           correctResp: testTrial.correctResp,
+          trialLabel: testTrial.trialLabel,
+          targPosition: testTrial.targPosition,
+          foilPosition: testTrial.foilPosition,
         },
         on_finish: function(data) {
           data.trialAcc = (data.response === data.correctResp);
           data.responded = data.response !== null;
           if (window.DEBUG) {
-            console.log("trial: "       + data.trial_index
-              + " blockTNum: " + data.blockTNum
-              + " blockNum: " + data.blockNum
-              + " blockIdn: " + data.blockIdn
-              + " pairType: " + data.pairType
+            console.log(
+              `[TEST] Trial ${data.trial_index} | Block ${data.blockNum}.${data.blockTNum} | ` +
+              `Type: ${data.trialLabel} | Resp: ${data.response} | Corr: ${data.correctResp}`
             );
           }
         }
@@ -444,7 +514,7 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
   }
 
   // Helper to render the stimulus image
-  function makeImageTrial(stimID, fractObj, data, tNum, trialType, duration = 1000) {
+  function makeImageTrial(stimID, fractObj, data, tNum, testTrial, trialType, duration = 1000) {
     if (window.DEBUG) {
       duration = 50;
     }
@@ -456,7 +526,7 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
       blockNum: data.blockNum,
       choices: "NO_KEYS",
       trial_duration: duration,
-      record_data: false,
+      record_data: true,
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
         <div class="stimulus-container">
@@ -465,14 +535,15 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
         </div>
       `,
       data: {
+        ...data,
+        ...testTrial,
         trialType: trialType,
-        ...data
       }
     };
   }
 
   // Helper to render a fixation cross
-  function makeFixationTrial(duration = 500, tNum) {
+  function makeFixationTrial(duration = 500, tNum, testTrial) {
     if (window.DEBUG) {
       duration = 50;
     }
@@ -481,10 +552,11 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
       stimFid: "fix",
       choices: "NO_KEYS",
       trial_duration: duration,
-      record_data: false,
+      record_data: true,
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
       data: {
+        ...testTrial,
         trialType: "fixation",
       }
     };
@@ -614,15 +686,22 @@ function responseFeedback(duration = 150) {
   };
 }
     
-function generateTargetAndFoilPairs(cbBlocks, blockTestPairs, directTests, directTestPairNums, directTestPairIdxs, directTestFoilIdxs) {
+function generateTargetAndFoilPairs(cbBlocks, blockTestPairs, testPairsByType, testPairNumsByType, pairIdxsByType, foilIdxsByType, isBlocked = true) {
   const testPairsList = [];
+  let blockName;
+  // tests are AC/BD or AD, the block idn is ACBD for 1-step and AD for 2-step
+    if (~isBlocked) {
+      // combine cbBlocks to get the block name
+      blockName = cbBlocks.join("");
+      console.log("Block name:", blockName);
+    }
 
   cbBlocks.forEach((condIdn, blockNum) => {
     const condIdx = blockTestPairs[condIdn];
-    const currCondDirectTests = directTests[condIdx];
-    const currCondPairs = directTestPairNums[condIdx];
-    const currCondPairIdxs = directTestPairIdxs[condIdx];
-    const currCondFoilIdxs = directTestFoilIdxs[condIdx];
+    const currCondDirectTests = testPairsByType[condIdx];
+    const currCondPairs = testPairNumsByType[condIdx];
+    const currCondPairIdxs = pairIdxsByType[condIdx];
+    const currCondFoilIdxs = foilIdxsByType[condIdx];
 
     currCondPairIdxs.forEach((blockPairNum, blockTNum) => {
       const pairFid = currCondDirectTests[blockPairNum];
@@ -632,11 +711,11 @@ function generateTargetAndFoilPairs(cbBlocks, blockTestPairs, directTests, direc
       const foilPairNum = currCondPairs[foilNum];
 
       testPairsList.push({
-        blockNum: blockNum,
+        blockNum: isBlocked ? blockNum : 0,
         blockTNum: NaN,
         blockRepNum: NaN,
-        blockIdn: condIdn,
-        keyIdn: String(condIdn),
+        blockIdn: condIdn,       //isBlocked ? condIdn : blockName,
+        keyIdn: isBlocked ? String(condIdn) : String(blockName),
         blockPairNum: blockPairNum,
         pairNum: [pairNum,pairNum],
         pairFid: pairFid,
@@ -649,11 +728,11 @@ function generateTargetAndFoilPairs(cbBlocks, blockTestPairs, directTests, direc
       });
 
       testPairsList.push({
-        blockNum: blockNum,
+        blockNum: isBlocked ? blockNum : 0,
         blockTNum: NaN,
         blockRepNum: NaN,
-        blockIdn: condIdn,
-        keyIdn: String(condIdn),
+        blockIdn: condIdn,       //isBlocked ? condIdn : blockName,
+        keyIdn: isBlocked ? String(condIdn) : String(blockName),
         blockPairNum: foilNum,
         pairNum: [pairNum, foilPairNum],
         pairFid: foilFid,

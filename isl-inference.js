@@ -10,7 +10,7 @@ const jsPsych = initJsPsych({
 });
 
 const IS_DEBUG_MODE = true;
-const SAVE_DATA_XAMPP = false;
+const SAVE_DATA_XAMPP = true;
 window.DEBUG = false;
 
 
@@ -28,11 +28,12 @@ const expInfo = () => jsPsych.data.dataProperties;
 jsPsych.data.addProperties({
   'expName': EXP_NAME,
   'subject': jsPsych.data.getURLVariable('participant') || 
-  "0191", // default subject number if not provided in URL
+  String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
   //String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
+  // "0191",
   'session': jsPsych.data.getURLVariable('session') || 
   '001',
-  'test': "2-step",                   // ["2-step", "1-step"],
+  'test': Math.random() < 0.5 ? "2-step" : "1-step", // "2-step",                   // 'test': Math.random() < 0.5 ? "2-step" : "1-step",
   'exposure': "retrospective",        // ["retrospective", "transitive"],
 });
 
@@ -90,42 +91,92 @@ let subNum = expInfo()["subject"];                              // get subject n
 let subCbNum = (Number.parseInt(subNum) % cbPerms);             // set counterbalancing number based on subject number
 let subCbBlocks = CbDirectTestSeqs[subCbNum].slice();           // get subject's test blocks based on counterbalancing number
 let cbCondition = subCbBlocks.map(item => item[0]).join("-");   // create a string representation of the counterbalancing condition for logging 
+let subTestType = expInfo()["test"];                          // get test type from expInfo()
 
 // seed the random number generator with subject number
 Math.seedrandom(subNum);
 
 // generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
-const subParams = getSubjectParams(numImgs, numStim, numGrps, numReps, subCbBlocks);
+const subParams = getSubjectParams(numImgs, numStim, numGrps, numReps, subCbBlocks, subTestType);
+
+// const xhrDataUpload = {
+//   type: jsPsychCallFunction,
+//   async: true,
+//   record_data: false,
+//   func: function (done) {
+//     let xhr = new XMLHttpRequest();
+//     xhr.onreadystatechange = function () {
+//       if (xhr.readyState === 4) {
+//         if (xhr.status === 200) {
+//           const response = JSON.parse(xhr.responseText);
+//           done(); // Continue experiment
+//         } else {
+//           console.error("Upload failed. Status:", xhr.status);
+//           done(); // Still continue
+//         }
+//       }
+//     };
+//     xhr.open('POST', 'write_data.php', true);
+//     xhr.setRequestHeader('Content-Type', 'application/json');
+//     const csvData = jsPsych.data.get().csv();
+//     const filename = `sub-${jsPsych.data.dataProperties['subject']}_${jsPsych.data.dataProperties['expName']}_data`;
+//     xhr.send(JSON.stringify({ filedata: csvData, filename: filename }));
+//   }
+// };
 
 const xhrDataUpload = {
   type: jsPsychCallFunction,
   async: true,
   record_data: false,
   func: function (done) {
-    let xhr = new XMLHttpRequest();
+    const allData = jsPsych.data.get();
+    const filtered = allData.filterCustom(row => {
+      // Keep only relevant trialTypes: test_combined and exposure trials
+      return row.trialType === "test" || row.trialType === "exposure";
+    });
+    const csvData = filtered.csv();
+    const props = filtered.values()[0] || {};
+    const subj = props.subject || 'unknown';
+    const session = props.session || '001';
+    const exp = props.expName || 'experiment';
+    const testType = props.test || 'unknown';
+    const filename = `sub-${subj}_${exp}_${testType}-test`;
+
+
+
+    console.log(`Uploading final data as: ${filename}`);
+    console.log(`Trial count: ${jsPsych.data.get().count()}`);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'write_data.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function () {
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText);
-          done(); // Continue experiment
+          console.log(`Data saved: ${filename}`);
         } else {
-          console.error("Upload failed. Status:", xhr.status);
-          done(); // Still continue
+          console.error(`Failed to save data (${xhr.status})`);
         }
+        done(); // always continue
       }
     };
-    xhr.open('POST', 'write_data.php', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    const csvData = jsPsych.data.get().csv();
-    const filename = `sub-${jsPsych.data.dataProperties['subject']}_${jsPsych.data.dataProperties['expName']}_data`;
-    xhr.send(JSON.stringify({ filedata: csvData, filename: filename }));
+
+    xhr.send(JSON.stringify({
+      filedata: csvData,
+      filename: filename
+    }));
   }
 };
+
+
+
+
 
 // add subject parameters to jsPsych data
 jsPsych.data.addProperties({
   'cbNum': subCbNum + 1, // counterbalancing number (1-6)
   'testOrder': cbCondition,
+  'testType': subTestType
 });
 console.log("rand num: " + Math.random()); // log a random number for debugging
 if (window.DEBUG) {
@@ -312,8 +363,8 @@ exposureBlocks.forEach((blockTrial, t) => {
       timeline_variables: blockTrial
     });
   } else {
-    console.log("exposureTrial", exposureTrial);
-    console.log("blockTrial", blockTrial);
+    //console.log("exposureTrial", exposureTrial);
+    //console.log("blockTrial", blockTrial);
     timeline.push({
       timeline: [exposureTrial],
       timeline_variables: blockTrial
@@ -334,13 +385,20 @@ const testTrial = {
       choices: "NO_KEYS",
       trial_duration: testISI,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
+      data: {
+        trialType: "fixation"
+      }
     },
     // First image of first pair
     {
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
       trial_duration: testStimDur,
-      stimulus: jsPsych.timelineVariable('pair1Img1')
+      stimulus: jsPsych.timelineVariable('pair1Img1'),
+      data: {
+        trialType: "pair1Img1",
+        stimFid: jsPsych.timelineVariable('pair1Fids')[0]
+      }
     },
     // Fixation between first and second image
     {
@@ -348,13 +406,20 @@ const testTrial = {
       choices: "NO_KEYS",
       trial_duration: testISI,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
+      data: {
+        trialType: "isi1"
+      }
     },
     // Second image of first pair
     {
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
       trial_duration: testStimDur,
-      stimulus: jsPsych.timelineVariable('pair1Img2')
+      stimulus: jsPsych.timelineVariable('pair1Img2'),
+      data: {
+        trialType: "pair1Img2",
+        stimFid: jsPsych.timelineVariable('pair1Fids')[1]
+      }
     },
     // Fixation between pairs
     {
@@ -362,13 +427,20 @@ const testTrial = {
       choices: "NO_KEYS",
       trial_duration: testITI,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
+      data: {
+        trialType: "iti"
+      }
     },
     // First image of second pair
     {
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
       trial_duration: testStimDur,
-      stimulus: jsPsych.timelineVariable('pair2Img1')
+      stimulus: jsPsych.timelineVariable('pair2Img1'),
+      data: {
+        trialType: "pair2Img1",
+        stimFid: jsPsych.timelineVariable('pair2Fids')[0],
+      }
     },
     // Fixation between second and final image
     {
@@ -376,31 +448,40 @@ const testTrial = {
       choices: "NO_KEYS",
       trial_duration: testISI,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
+      data: {
+        trialType: "isi2"
+      }
     },
     // Second image of second pair
     {
       type: jsPsychHtmlKeyboardResponse,
       choices: "NO_KEYS",
       trial_duration: testStimDur,
-      stimulus: jsPsych.timelineVariable('pair2Img2')
+      stimulus: jsPsych.timelineVariable('pair2Img2'),
+      data: {
+        trialType: "pair2Img2",
+        stimFid: jsPsych.timelineVariable('pair2Fids')[1],
+      }
     },
     // Response screen
     {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
         <div class='prompt'>
-          Which pair was familiar?<br><br>
-          Press <strong>F</strong> for the <em>first</em> pair<br>
-          Press <strong>J</strong> for the <em>second</em> pair
+          Which sequence of images was more familiar?<br><br>
+          Press <strong>F</strong> for the <em>first</em> sequence<br>
+          Press <strong>J</strong> for the <em>second</em> sequence
         </div>
       `,
       choices: ['f', 'j'],
       trial_duration: IS_DEBUG_MODE ? 10 : null,
       data: {
-        trialType: 'test',
+        trialType: 'response',
         blockIdn: jsPsych.timelineVariable('blockIdn'),
         blockNum: jsPsych.timelineVariable('blockNum'),
         blockTNum: jsPsych.timelineVariable('blockTNum'),
+        pairFid: jsPsych.timelineVariable('pair1Type') === 'target' ? jsPsych.timelineVariable('pair1Fids') : jsPsych.timelineVariable('pair2Fids'),
+        pairNum: jsPsych.timelineVariable('pair1Type') === 'target' ? jsPsych.timelineVariable('pair1Num') : jsPsych.timelineVariable('pair2Num'),
         blockRepNum: jsPsych.timelineVariable('blockRepNum'),
         pair1Type: jsPsych.timelineVariable('pair1Type'),
         pair2Type: jsPsych.timelineVariable('pair2Type'),
@@ -409,14 +490,62 @@ const testTrial = {
         correctResp: jsPsych.timelineVariable('correctResp'),
       },
       on_finish: function(data) {
-        data.trialAcc = data.response === data.correctResp;
+        data.trialAcc = data.response === data.correctResp ? 1 : 0;
         data.responded = data.response !== null;
+
+        // Extract all trials in this blockTNum + blockNum group
+        const trialData = jsPsych.data.get().filter({
+          blockTNum: data.blockTNum,
+          blockNum: data.blockNum
+        }).values();
+
+        const imageFids = {
+          pair1Img1: trialData.find(d => d.trialType === "pair1Img1")?.stimFid ?? "NA",
+          pair1Img2: trialData.find(d => d.trialType === "pair1Img2")?.stimFid ?? "NA",
+          pair2Img1: trialData.find(d => d.trialType === "pair2Img1")?.stimFid ?? "NA",
+          pair2Img2: trialData.find(d => d.trialType === "pair2Img2")?.stimFid ?? "NA"
+        };
+
+        // Add a clean, flat row summarizing this entire trial sequence
+        jsPsych.data.addDataToLastTrial({
+          trialType: "test",
+          blockTNum: data.blockTNum,
+          blockNum: data.blockNum,
+          blockIdn: data.blockIdn,
+          subject: jsPsych.data.get().last(1).values()[0]?.subject ?? "NA",
+          session: jsPsych.data.get().last(1).values()[0]?.session ?? "NA",
+          test: jsPsych.data.get().last(1).values()[0]?.test ?? "NA",
+          exposure: jsPsych.data.get().last(1).values()[0]?.exposure ?? "NA",
+          cbNum: jsPsych.data.get().last(1).values()[0]?.cbNum ?? "NA",
+          testOrder: jsPsych.data.get().last(1).values()[0]?.testOrder ?? "NA",
+          testType: jsPsych.data.get().last(1).values()[0]?.testType ?? "NA",
+          expName: jsPsych.data.get().last(1).values()[0]?.expName ?? "NA",
+          pair1Type: data.pair1Type,
+          pair2Type: data.pair2Type,
+          pair1Num: data.pair1Num,
+          pair2Num: data.pair2Num,
+          pair1Fids: JSON.stringify(data.pair1Fids ?? []),
+          pair2Fids: JSON.stringify(data.pair2Fids ?? []),
+          pair1Fid_1: imageFids.pair1Img1,
+          pair1Fid_2: imageFids.pair1Img2,
+          pair2Fid_1: imageFids.pair2Img1,
+          pair2Fid_2: imageFids.pair2Img2,
+          blockRepNum: data.blockRepNum,
+          correctResp: data.correctResp,
+          response: data.response,
+          rt: data.rt,
+          trialAcc: data.trialAcc,
+          responded: data.responded
+        });
+
         if (IS_DEBUG_MODE) {
-          console.log("trial:", data.trial_index,
-                      " blockTNum:", data.blockTNum,
-                      "\t blockNum:", data.blockNum,
-                      "\t pairFid:", data.pair1Fid + " + " + data.pair2Fid,
-                      "\t pairOrder:", data.pair1Type + " + " + data.pair2Type);
+          console.log(
+            "trial:", data.trial_index,
+            "block:", data.blockNum,
+            "pair1:", data.pair1Fids, "(", imageFids.pair1Img1, "+", imageFids.pair1Img2, ")",
+            "pair2:", data.pair2Fids, "(", imageFids.pair2Img1, "+", imageFids.pair2Img2, ")",
+            "resp:", data.response, "acc:", data.trialAcc
+          );
         }
       }
     }
@@ -424,7 +553,29 @@ const testTrial = {
   timeline_variables: [] // to be filled dynamically when added to the timeline
 };
 
-// define the test trial  
+// define the indirect test trials
+const indirectTestTrials = subParams.indirectTestTrials;
+console.log("indirectTestTrials: ", indirectTestTrials);
+Object.keys(indirectTestTrials).forEach((testBlock, t) => {
+  const currentBlockTrials = indirectTestTrials[testBlock];
+  console.log(`Processing indirect test block: ${testBlock}`, currentBlockTrials);
+
+  if (SAVE_DATA_XAMPP) {
+    // Data upload trial
+    timeline.push({
+      timeline: [testTrial.timeline, xhrDataUpload],
+      timeline_variables: currentBlockTrials
+    });
+  } else {
+    timeline.push({
+      timeline: [testTrial.timeline],
+      timeline_variables: currentBlockTrials
+    });
+  }
+
+});
+
+// define the direct test trials  
 const directTestTrials = subParams.directTestTrials;
 console.log("directTestTrials: ", directTestTrials);
 Object.keys(directTestTrials).forEach((testBlock, t) => {
