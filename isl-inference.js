@@ -73,8 +73,8 @@ if (IS_DEBUG_MODE) {
   numStim = 24;
   numGrps = 6;
   numReps = 40;
-  expoStimDur = 1000;                        
-  expoITI = 1000;
+  expoStimDur = 500;                        
+  expoITI = 500;
   testStimDur = 1000; // duration of each fractal in test trials
   testITI = 1200;     // inter-trial interval for test trials
   testISI = 500;
