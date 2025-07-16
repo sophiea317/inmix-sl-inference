@@ -402,10 +402,15 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
         const pair2Num = pairTwo.pairNum;
         const pair1Type = pairOne.pairType;
         const pair2Type = pairTwo.pairType;
+        const pairNum = pairOne.pairType === 'target' ? pair1Num : pair2Num;
+        const pairFid = pairOne.pairFid === targFid ? pairOne.pairFid : pairTwo.pairFid;
+        console.log("pairOne.keyIdn: " + pairOne.keyIdn + "\npairOne.keyIdn[0]: " + pairOne.keyIdn[0] + "\npairTwo.keyIdn: " + pairTwo.keyIdn + "\npairTwo.keyIdn[0]: " + pairTwo.keyIdn[0]);
         const trlInfo = {
-          blockIdn: String(target.blockIdn),
+          blockIdn: String(target.blockIdn),  
           blockNum: blockNum,
           blockTNum: blockTNum,
+          pairNum: pairNum[0],
+          pairFid: pairFid,
           pair1Num: pair1Num,
           pair2Num: pair2Num,
           pair1Fids: pairOne.pairFid,
@@ -416,12 +421,20 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           pair1Img2: stimulus(fractObj,pairOne.img2Fid),
           pair2Img1: stimulus(fractObj,pairTwo.img1Fid),
           pair2Img2: stimulus(fractObj,pairTwo.img2Fid),
-          pair1Idn: pairOne.pairIdn,
-          pair2Idn: pairTwo.pairIdn,
+          pair1Idn: pairOne.keyIdn,
+          pair2Idn: pairTwo.keyIdn,
+          pair1Img1Num: pairOne.img1Num,
+          pair1Img2Num: pairOne.img2Num,
+          pair2Img1Num: pairTwo.img1Num,
+          pair2Img2Num: pairTwo.img2Num,
           pair1Img1Fid: pairOne.img1Fid,
           pair1Img2Fid: pairOne.img2Fid,
           pair2Img1Fid: pairTwo.img1Fid,
           pair2Img2Fid: pairTwo.img2Fid,
+          pair1Img1Idn: pairOne.keyIdn[0],
+          pair1Img2Idn: pairOne.keyIdn[1],
+          pair2Img1Idn: pairTwo.keyIdn[0],
+          pair2Img2Idn: pairTwo.keyIdn[1],
           targPosition: pair1Type === "target" ? "first" : "second",
           foilPosition: pair1Type === "foil" ? "first" : "second",
           trialLabel: `${pair1Type.toUpperCase()}-${pair2Type.toUpperCase()}`,
@@ -458,7 +471,8 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
     const tNum = testTrial.blockTNum;
     const pairOne = testTrial.pairOne;
     const pairTwo = testTrial.pairTwo;
-
+    
+    console.log("testTrial:", testTrial);
     return [
       // Initial fixation before first image
       makeFixationTrial(500, tNum, testTrial),
@@ -475,7 +489,6 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
       makeImageTrial(pairTwo.img1Fid, fractObj, pairTwo, tNum, testTrial,"pair2-img1"),
       makeFixationTrial(500, tNum, testTrial),
       makeImageTrial(pairTwo.img2Fid, fractObj, pairTwo, tNum, testTrial,"pair2-img2"),
-
       // Response screen
       {
         blockTNum: tNum,
@@ -494,6 +507,16 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           trialType: "test",
           pair1Type: testTrial.pair1Type,
           pair2Type: testTrial.pair2Type,
+          pairNum: testTrial.pairNum[0],
+          pairFid: testTrial.pairFid,
+          pair1Fid: testTrial.pair1Fids,
+          pair2Fid: testTrial.pair2Fids,
+          pair1Idn: testTrial.pair1Idn,
+          pair2Idn: testTrial.pair2Idn,
+          pair1Img1Fid: testTrial.pair1Img1Fid,
+          pair1Img2Fid: testTrial.pair1Img2Fid,
+          pair2Img1Fid: testTrial.pair2Img1Fid,
+          pair2Img2Fid: testTrial.pair2Img2Fid,
           correctResp: testTrial.correctResp,
           trialLabel: testTrial.trialLabel,
           targPosition: testTrial.targPosition,

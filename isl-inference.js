@@ -10,7 +10,7 @@ const jsPsych = initJsPsych({
 });
 
 const IS_DEBUG_MODE = true;
-const SAVE_DATA_XAMPP = true;
+const SAVE_DATA_XAMPP = false;  // localhost:5500/inmix-sl-inference/index.html
 window.DEBUG = false;
 
 
@@ -99,31 +99,6 @@ Math.seedrandom(subNum);
 // generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
 const subParams = getSubjectParams(numImgs, numStim, numGrps, numReps, subCbBlocks, subTestType);
 
-// const xhrDataUpload = {
-//   type: jsPsychCallFunction,
-//   async: true,
-//   record_data: false,
-//   func: function (done) {
-//     let xhr = new XMLHttpRequest();
-//     xhr.onreadystatechange = function () {
-//       if (xhr.readyState === 4) {
-//         if (xhr.status === 200) {
-//           const response = JSON.parse(xhr.responseText);
-//           done(); // Continue experiment
-//         } else {
-//           console.error("Upload failed. Status:", xhr.status);
-//           done(); // Still continue
-//         }
-//       }
-//     };
-//     xhr.open('POST', 'write_data.php', true);
-//     xhr.setRequestHeader('Content-Type', 'application/json');
-//     const csvData = jsPsych.data.get().csv();
-//     const filename = `sub-${jsPsych.data.dataProperties['subject']}_${jsPsych.data.dataProperties['expName']}_data`;
-//     xhr.send(JSON.stringify({ filedata: csvData, filename: filename }));
-//   }
-// };
-
 const xhrDataUpload = {
   type: jsPsychCallFunction,
   async: true,
@@ -144,8 +119,8 @@ const xhrDataUpload = {
 
 
 
-    console.log(`Uploading final data as: ${filename}`);
-    console.log(`Trial count: ${jsPsych.data.get().count()}`);
+    //console.log(`Uploading final data as: ${filename}`);
+    //console.log(`Trial count: ${jsPsych.data.get().count()}`);
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', 'write_data.php', true);
@@ -324,7 +299,6 @@ const exposureTrial = {
     img1Idn: jsPsych.timelineVariable('img1Idn'),
     img2Idn: jsPsych.timelineVariable('img2Idn'),
     stimFid: jsPsych.timelineVariable('stimFid'),
-    pairFid: jsPsych.timelineVariable('pairFid'),
     streamIdn: jsPsych.timelineVariable('streamId'),
     streamNum: jsPsych.timelineVariable('streamNum'),
     streamTNum: jsPsych.timelineVariable('streamTNum'),
@@ -480,18 +454,38 @@ const testTrial = {
         blockIdn: jsPsych.timelineVariable('blockIdn'),
         blockNum: jsPsych.timelineVariable('blockNum'),
         blockTNum: jsPsych.timelineVariable('blockTNum'),
-        pairFid: jsPsych.timelineVariable('pair1Type') === 'target' ? jsPsych.timelineVariable('pair1Fids') : jsPsych.timelineVariable('pair2Fids'),
-        pairNum: jsPsych.timelineVariable('pair1Type') === 'target' ? jsPsych.timelineVariable('pair1Num') : jsPsych.timelineVariable('pair2Num'),
+        pairFid: jsPsych.timelineVariable('pairFid'),
+        pairNum: jsPsych.timelineVariable('pairNum'),
         blockRepNum: jsPsych.timelineVariable('blockRepNum'),
         pair1Type: jsPsych.timelineVariable('pair1Type'),
         pair2Type: jsPsych.timelineVariable('pair2Type'),
+        pair1Num: jsPsych.timelineVariable('pair1Num'),
+        pair2Num: jsPsych.timelineVariable('pair2Num'),
         pair1Fid: jsPsych.timelineVariable('pair1Fids'),
         pair2Fid: jsPsych.timelineVariable('pair2Fids'),
+        pair1Idn: jsPsych.timelineVariable('pair1Idn'),
+        pair2Idn: jsPsych.timelineVariable('pair2Idn'),
+        pair1Img1Num: jsPsych.timelineVariable('pair1Img1Num'),
+        pair1Img2Num: jsPsych.timelineVariable('pair1Img2Num'),
+        pair2Img1Num: jsPsych.timelineVariable('pair2Img1Num'),
+        pair2Img2Num: jsPsych.timelineVariable('pair2Img2Num'),
+        pair1Img1Fid: jsPsych.timelineVariable('pair1Img1Fid'),
+        pair1Img2Fid: jsPsych.timelineVariable('pair1Img2Fid'),
+        pair2Img1Fid: jsPsych.timelineVariable('pair2Img1Fid'),
+        pair2Img2Fid: jsPsych.timelineVariable('pair2Img2Fid'),
+        pair1Img1Idn: jsPsych.timelineVariable('pair1Img1Idn'),
+        pair1Img2Idn: jsPsych.timelineVariable('pair1Img2Idn'),
+        pair2Img1Idn: jsPsych.timelineVariable('pair2Img1Idn'),
+        pair2Img2Idn: jsPsych.timelineVariable('pair2Img2Idn'),
         correctResp: jsPsych.timelineVariable('correctResp'),
       },
       on_finish: function(data) {
         data.trialAcc = data.response === data.correctResp ? 1 : 0;
         data.responded = data.response !== null;
+
+        console.log(
+          "data:", data
+        )
 
         // Extract all trials in this blockTNum + blockNum group
         const trialData = jsPsych.data.get().filter({
@@ -524,12 +518,6 @@ const testTrial = {
           pair2Type: data.pair2Type,
           pair1Num: data.pair1Num,
           pair2Num: data.pair2Num,
-          pair1Fids: JSON.stringify(data.pair1Fids ?? []),
-          pair2Fids: JSON.stringify(data.pair2Fids ?? []),
-          pair1Fid_1: imageFids.pair1Img1,
-          pair1Fid_2: imageFids.pair1Img2,
-          pair2Fid_1: imageFids.pair2Img1,
-          pair2Fid_2: imageFids.pair2Img2,
           blockRepNum: data.blockRepNum,
           correctResp: data.correctResp,
           response: data.response,
@@ -540,11 +528,11 @@ const testTrial = {
 
         if (IS_DEBUG_MODE) {
           console.log(
-            "trial:", data.trial_index,
-            "block:", data.blockNum,
-            "pair1:", data.pair1Fids, "(", imageFids.pair1Img1, "+", imageFids.pair1Img2, ")",
-            "pair2:", data.pair2Fids, "(", imageFids.pair2Img1, "+", imageFids.pair2Img2, ")",
-            "resp:", data.response, "acc:", data.trialAcc
+            "trial:", data.blockTNum,
+            "\nblock:", data.blockNum,
+            "\npair1:", data.pair1Fid, "(", data.pair1Img1Fid, "+", data.pair1Img2Fid, ")",
+            "\npair2:", data.pair2Fid, "(", data.pair2Img1Fid, "+", data.pair2Img2Fid, ")",
+            "\nresp:", data.response, "\nacc:", data.trialAcc
           );
         }
       }
