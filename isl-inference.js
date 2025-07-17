@@ -10,7 +10,7 @@ const jsPsych = initJsPsych({
 });
 
 const IS_DEBUG_MODE = true;
-const SAVE_DATA_XAMPP = false;  // localhost:5500/inmix-sl-inference/index.html
+const SAVE_DATA_XAMPP = true;  // localhost:5500/inmix-sl-inference/index.html
 window.DEBUG = false;
 
 
@@ -28,7 +28,7 @@ const expInfo = () => jsPsych.data.dataProperties;
 jsPsych.data.addProperties({
   'expName': EXP_NAME,
   'subject': jsPsych.data.getURLVariable('participant') || 
-  String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
+  "7006", //String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
   //String(Math.floor(Math.random() * 9000) + 1000),  // 1000–9999
   // "0191",
   'session': jsPsych.data.getURLVariable('session') || 
@@ -99,6 +99,9 @@ Math.seedrandom(subNum);
 // generate the stimulus sample, tetrad groups, pairs, and 1-back visual streams
 const subParams = getSubjectParams(numImgs, numStim, numGrps, numReps, subCbBlocks, subTestType);
 
+console.log("directTestPairsList: ", subParams.testPairsList);
+console.log("indirectTestPairsList: ", subParams.indirectTestPairsList);
+
 const xhrDataUpload = {
   type: jsPsychCallFunction,
   async: true,
@@ -106,8 +109,8 @@ const xhrDataUpload = {
   func: function (done) {
     const allData = jsPsych.data.get();
     const filtered = allData.filterCustom(row => {
-      // Keep only relevant trialTypes: test_combined and exposure trials
-      return row.trialType === "test" || row.trialType === "exposure";
+      // Keep only relevant trialTypes: everything except "fixation"
+      return row.trialType !== 'fixation';
     });
     const csvData = filtered.csv();
     const props = filtered.values()[0] || {};
@@ -287,6 +290,7 @@ const exposureTrial = {
   
   data: {
     trialType: 'exposure',
+    stimType: 'imageDisplay',
     blockNum: jsPsych.timelineVariable('blockNum'),
     blockTNum: jsPsych.timelineVariable('blockTNum'),
     blockIdn: jsPsych.timelineVariable('pairIdn'),
@@ -325,7 +329,8 @@ const exposureTrial = {
   }
 };
 
-
+// welcome screen
+timeline.push(welcome);
 
 const exposureBlocks = subParams.blockedVisualStreams
 console.log("exposureBlocks: ", exposureBlocks);
@@ -370,8 +375,20 @@ const testTrial = {
       trial_duration: testStimDur,
       stimulus: jsPsych.timelineVariable('pair1Img1'),
       data: {
-        trialType: "pair1Img1",
-        stimFid: jsPsych.timelineVariable('pair1Fids')[0]
+        trialType: "test",
+        stimType: "pair1Img1",
+        testCond: jsPsych.timelineVariable('testCond'),
+        blockNum: jsPsych.timelineVariable('blockNum'),
+        blockTNum: jsPsych.timelineVariable('blockTNum'),
+        blockIdn: jsPsych.timelineVariable('blockIdn'),
+        pairFid: jsPsych.timelineVariable('pair1Fids'),
+        pairNum: jsPsych.timelineVariable('pair1Img1Num'),
+        stimFid: jsPsych.timelineVariable('pair1Img1Fid'),
+        img1Fid: jsPsych.timelineVariable('pair1Img1Fid'),
+        img2Fid: jsPsych.timelineVariable('pair1Img2Fid'),
+        stimIdn: jsPsych.timelineVariable('pair1Img1Idn'),
+        img1Idn: jsPsych.timelineVariable('pair1Img1Idn'),
+        img2Idn: jsPsych.timelineVariable('pair1Img2Idn'),
       }
     },
     // Fixation between first and second image
@@ -381,7 +398,7 @@ const testTrial = {
       trial_duration: testISI,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
       data: {
-        trialType: "isi1"
+        trialType: "fixation"
       }
     },
     // Second image of first pair
@@ -391,8 +408,20 @@ const testTrial = {
       trial_duration: testStimDur,
       stimulus: jsPsych.timelineVariable('pair1Img2'),
       data: {
-        trialType: "pair1Img2",
-        stimFid: jsPsych.timelineVariable('pair1Fids')[1]
+        trialType: "test",
+        stimType: "pair1Img2",
+        testCond: jsPsych.timelineVariable('testCond'),
+        blockNum: jsPsych.timelineVariable('blockNum'),
+        blockTNum: jsPsych.timelineVariable('blockTNum'),
+        blockIdn: jsPsych.timelineVariable('blockIdn'),
+        pairFid: jsPsych.timelineVariable('pair1Fids'),
+        pairNum: jsPsych.timelineVariable('pair1Img2Num'),
+        stimFid: jsPsych.timelineVariable('pair1Img2Fid'),
+        img1Fid: jsPsych.timelineVariable('pair1Img1Fid'),
+        img2Fid: jsPsych.timelineVariable('pair1Img2Fid'),
+        stimIdn: jsPsych.timelineVariable('pair1Img2Idn'),
+        img1Idn: jsPsych.timelineVariable('pair1Img1Idn'),
+        img2Idn: jsPsych.timelineVariable('pair1Img2Idn'),
       }
     },
     // Fixation between pairs
@@ -402,7 +431,7 @@ const testTrial = {
       trial_duration: testITI,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
       data: {
-        trialType: "iti"
+        trialType: "fixation"
       }
     },
     // First image of second pair
@@ -412,8 +441,20 @@ const testTrial = {
       trial_duration: testStimDur,
       stimulus: jsPsych.timelineVariable('pair2Img1'),
       data: {
-        trialType: "pair2Img1",
-        stimFid: jsPsych.timelineVariable('pair2Fids')[0],
+        trialType: "test",
+        stimType: "pair2Img1",
+        testCond: jsPsych.timelineVariable('testCond'),
+        blockNum: jsPsych.timelineVariable('blockNum'),
+        blockTNum: jsPsych.timelineVariable('blockTNum'),
+        blockIdn: jsPsych.timelineVariable('blockIdn'),
+        pairFid: jsPsych.timelineVariable('pair2Fids'),
+        pairNum: jsPsych.timelineVariable('pair2Img1Num'),
+        stimFid: jsPsych.timelineVariable('pair2Img1Fid'),
+        img1Fid: jsPsych.timelineVariable('pair2Img1Fid'),
+        img2Fid: jsPsych.timelineVariable('pair2Img2Fid'),
+        stimIdn: jsPsych.timelineVariable('pair2Img1Idn'),
+        img1Idn: jsPsych.timelineVariable('pair2Img1Idn'),
+        img2Idn: jsPsych.timelineVariable('pair2Img2Idn'),
       }
     },
     // Fixation between second and final image
@@ -423,7 +464,7 @@ const testTrial = {
       trial_duration: testISI,
       stimulus: `<div class="stimulus-container"><div class="fixation"></div></div>`,
       data: {
-        trialType: "isi2"
+        trialType: "fixation"
       }
     },
     // Second image of second pair
@@ -433,8 +474,20 @@ const testTrial = {
       trial_duration: testStimDur,
       stimulus: jsPsych.timelineVariable('pair2Img2'),
       data: {
-        trialType: "pair2Img2",
-        stimFid: jsPsych.timelineVariable('pair2Fids')[1],
+        trialType: "test",
+        stimType: "pair2Img2",
+        testCond: jsPsych.timelineVariable('testCond'),
+        blockNum: jsPsych.timelineVariable('blockNum'),
+        blockTNum: jsPsych.timelineVariable('blockTNum'),
+        blockIdn: jsPsych.timelineVariable('blockIdn'),
+        pairFid: jsPsych.timelineVariable('pair2Fids'),
+        pairNum: jsPsych.timelineVariable('pair2Img2Num'),
+        stimFid: jsPsych.timelineVariable('pair2Img2Fid'),
+        img1Fid: jsPsych.timelineVariable('pair2Img1Fid'),
+        img2Fid: jsPsych.timelineVariable('pair2Img2Fid'),
+        stimIdn: jsPsych.timelineVariable('pair2Img2Idn'),
+        img1Idn: jsPsych.timelineVariable('pair2Img1Idn'),
+        img2Idn: jsPsych.timelineVariable('pair2Img2Idn'),
       }
     },
     // Response screen
@@ -450,7 +503,9 @@ const testTrial = {
       choices: ['f', 'j'],
       trial_duration: IS_DEBUG_MODE ? 10 : null,
       data: {
-        trialType: 'response',
+        trialType: 'test',
+        stimType: 'response',
+        testCond: jsPsych.timelineVariable('testCond'),
         blockIdn: jsPsych.timelineVariable('blockIdn'),
         blockNum: jsPsych.timelineVariable('blockNum'),
         blockTNum: jsPsych.timelineVariable('blockTNum'),
@@ -487,22 +542,21 @@ const testTrial = {
           "data:", data
         )
 
-        // Extract all trials in this blockTNum + blockNum group
-        const trialData = jsPsych.data.get().filter({
-          blockTNum: data.blockTNum,
-          blockNum: data.blockNum
-        }).values();
+        // // Extract all trials in this blockTNum + blockNum group
+        // const trialData = jsPsych.data.get().filter({
+        //   blockTNum: data.blockTNum,
+        //   blockNum: data.blockNum
+        // }).values();
 
-        const imageFids = {
-          pair1Img1: trialData.find(d => d.trialType === "pair1Img1")?.stimFid ?? "NA",
-          pair1Img2: trialData.find(d => d.trialType === "pair1Img2")?.stimFid ?? "NA",
-          pair2Img1: trialData.find(d => d.trialType === "pair2Img1")?.stimFid ?? "NA",
-          pair2Img2: trialData.find(d => d.trialType === "pair2Img2")?.stimFid ?? "NA"
-        };
+        // const imageFids = {
+        //   pair1Img1: trialData.find(d => d.trialType === "pair1Img1")?.stimFid ?? "NA",
+        //   pair1Img2: trialData.find(d => d.trialType === "pair1Img2")?.stimFid ?? "NA",
+        //   pair2Img1: trialData.find(d => d.trialType === "pair2Img1")?.stimFid ?? "NA",
+        //   pair2Img2: trialData.find(d => d.trialType === "pair2Img2")?.stimFid ?? "NA"
+        // };
 
         // Add a clean, flat row summarizing this entire trial sequence
         jsPsych.data.addDataToLastTrial({
-          trialType: "test",
           blockTNum: data.blockTNum,
           blockNum: data.blockNum,
           blockIdn: data.blockIdn,

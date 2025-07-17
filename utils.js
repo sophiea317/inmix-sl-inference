@@ -226,7 +226,7 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks, testType) {
     // set up indirect test trial pairs
     indirectTestPairsList = generateTargetAndFoilPairs(
       ["AC", "BD"],
-      {"AC": 0, "BD": 0},
+      {"AC": 0, "BD": 1},
       indirectTests,
       indirectTestPairNums,
       indirectTestPairIdxs,
@@ -234,8 +234,8 @@ function getSubjectParams(nImg, nStim, grps, rep, cbBlocks, testType) {
       false
     );
   }
-  const { trialsTimeline: directTestTrialsTimeline, testTrials: directTestTrials } = generateRepeatedTestTrials(directTestPairsList, fractObj);
-  const { trialsTimeline: indirectTestTrialsTimeline, testTrials: indirectTestTrials } = generateRepeatedTestTrials(indirectTestPairsList, fractObj);
+  const { trialsTimeline: directTestTrialsTimeline, testTrials: directTestTrials } = generateRepeatedTestTrials(directTestPairsList, fractObj, "direct");
+  const { trialsTimeline: indirectTestTrialsTimeline, testTrials: indirectTestTrials } = generateRepeatedTestTrials(indirectTestPairsList, fractObj, "indirect");
 
 
   let excl1backVisStm1, excl1backVisStm2;
@@ -350,19 +350,19 @@ function generateFractalStream(fractObj, trialIDs, trialData, trialPairNums, str
 
 
 
-function generateRepeatedTestTrials(testPairs, fractObj) {
+function generateRepeatedTestTrials(testPairs, fractObj, testCond) {
   const numReps = 2; // number of repetitions for each foil set
   const testTrials = {};
   const trialsTimeline = {};
   // Group foils by keyIdn
   const targsCondGrped = {};
   const foilsCondGrped = {};
-  console.log("testPairs:", testPairs);
 
   testPairs.forEach(p => {
     if (p.pairType === 'foil') {
       if (!foilsCondGrped[p.keyIdn]) foilsCondGrped[p.keyIdn] = [];
       foilsCondGrped[p.keyIdn].push(p);
+      console.log("foil keyIdn:", p.keyIdn, "blockIdn:", p.keyIdn);
     }
     else if (p.pairType === 'target') {
       if (!targsCondGrped[p.keyIdn]) targsCondGrped[p.keyIdn] = [];
@@ -386,18 +386,36 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
     // loop over number of reps
     let tNum = 0;
     for (let rep = 0; rep < numReps; rep++) {
-      const foils = shuffle(foilsCondGrped[key].slice());
+      let foils = shuffle(foilsCondGrped[key].slice());
       const targets = shuffle(targsCondGrped[key].slice());
-      const trial = targets.map((target, t) => {
-        const foil = foils[t];
+      // force order of targets and foils to have matching keyIdn by looping over targets
+      let orderedTargets = targets;
+      let orderedFoils = [];
+      for (let i = 0; i < targets.length; i++) {
+        const currTarg = targets[i];
+        const currFoil = foils.find(foil => foil.blockIdn === currTarg.blockIdn);
+        console.log("orderedTargets:", currTarg, "orderedFoils:", currFoil);
+
+        // store ordered targets and foils and then remove the selected foil from the array
+        if (currFoil) {
+          orderedFoils.push(currFoil);
+          foils.splice(foils.indexOf(currFoil), 1);
+        } else {
+          console.warn("No matching foil found for target:", currTarg);
+        }
+      }
+
+      console.log("orderedTargets:", orderedTargets, "orderedFoils:", orderedFoils, "rep:", rep);
+      const trial = orderedTargets.map((target, t) => {
+        const foil = orderedFoils[t];
         const blockTNum = tNum++;
         const blockNum = b;
         const blockRepNum = rep;
         const blockRepTNum = t;
         const targFid = target.pairFid;
         const foilFid = foil.pairFid;
-        const pairOne = target.repSequenceNum[rep][0] === 0 ? target : foils[t];
-        const pairTwo = target.repSequenceNum[rep][0] === 0 ? foils[t] : target;
+        const pairOne = target.repSequenceNum[rep][0] === 0 ? target : foil;
+        const pairTwo = target.repSequenceNum[rep][0] === 0 ? foil : target;
         const pair1Num = pairOne.pairNum;
         const pair2Num = pairTwo.pairNum;
         const pair1Type = pairOne.pairType;
@@ -406,6 +424,7 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
         const pairFid = pairOne.pairFid === targFid ? pairOne.pairFid : pairTwo.pairFid;
         console.log("pairOne.keyIdn: " + pairOne.keyIdn + "\npairOne.keyIdn[0]: " + pairOne.keyIdn[0] + "\npairTwo.keyIdn: " + pairTwo.keyIdn + "\npairTwo.keyIdn[0]: " + pairTwo.keyIdn[0]);
         const trlInfo = {
+          testCond: testCond,
           blockIdn: String(target.blockIdn),  
           blockNum: blockNum,
           blockTNum: blockTNum,
@@ -421,8 +440,8 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           pair1Img2: stimulus(fractObj,pairOne.img2Fid),
           pair2Img1: stimulus(fractObj,pairTwo.img1Fid),
           pair2Img2: stimulus(fractObj,pairTwo.img2Fid),
-          pair1Idn: pairOne.keyIdn,
-          pair2Idn: pairTwo.keyIdn,
+          pair1Idn: String(pairOne.blockIdn),
+          pair2Idn: String(pairTwo.blockIdn),
           pair1Img1Num: pairOne.img1Num,
           pair1Img2Num: pairOne.img2Num,
           pair2Img1Num: pairTwo.img1Num,
@@ -431,10 +450,10 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
           pair1Img2Fid: pairOne.img2Fid,
           pair2Img1Fid: pairTwo.img1Fid,
           pair2Img2Fid: pairTwo.img2Fid,
-          pair1Img1Idn: pairOne.keyIdn[0],
-          pair1Img2Idn: pairOne.keyIdn[1],
-          pair2Img1Idn: pairTwo.keyIdn[0],
-          pair2Img2Idn: pairTwo.keyIdn[1],
+          pair1Img1Idn: String(pairOne.blockIdn)[0],
+          pair1Img2Idn: String(pairOne.blockIdn)[1],
+          pair2Img1Idn: String(pairTwo.blockIdn)[0],
+          pair2Img2Idn: String(pairTwo.blockIdn)[1],
           targPosition: pair1Type === "target" ? "first" : "second",
           foilPosition: pair1Type === "foil" ? "first" : "second",
           trialLabel: `${pair1Type.toUpperCase()}-${pair2Type.toUpperCase()}`,
@@ -455,6 +474,7 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
   });
   //stimulus: stimulus(fractObj, stimID),
 
+
   Object.keys(testTrials).forEach((key, i) => {
     trialsTimeline[key] = [];
 
@@ -472,7 +492,6 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
     const pairOne = testTrial.pairOne;
     const pairTwo = testTrial.pairTwo;
     
-    console.log("testTrial:", testTrial);
     return [
       // Initial fixation before first image
       makeFixationTrial(500, tNum, testTrial),
@@ -505,6 +524,7 @@ function generateRepeatedTestTrials(testPairs, fractObj) {
         data: {
           ...testTrial,
           trialType: "test",
+          testCond: testTrial.testCond,
           pair1Type: testTrial.pair1Type,
           pair2Type: testTrial.pair2Type,
           pairNum: testTrial.pairNum[0],
