@@ -9,8 +9,8 @@ const jsPsych = initJsPsych({
   auto_update_progress_bar: true
 });
 
-const IS_DEBUG_MODE = true;
-const SAVE_DATA_XAMPP = true;  // localhost:5500/inmix-sl-inference/index.html
+const IS_DEBUG_MODE = false;
+const SAVE_DATA_XAMPP = false;  // localhost:5500/inmix-sl-inference/index.html
 window.DEBUG = false;
 
 
@@ -120,11 +120,6 @@ const xhrDataUpload = {
     const testType = props.test || 'unknown';
     const filename = `sub-${subj}_${exp}_${testType}-test`;
 
-
-
-    //console.log(`Uploading final data as: ${filename}`);
-    //console.log(`Trial count: ${jsPsych.data.get().count()}`);
-
     const xhr = new XMLHttpRequest();
     xhr.open('POST', 'write_data.php', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
@@ -145,10 +140,6 @@ const xhrDataUpload = {
     }));
   }
 };
-
-
-
-
 
 // add subject parameters to jsPsych data
 jsPsych.data.addProperties({
@@ -172,10 +163,7 @@ console.log(
   + "\ntest order:\t" + expInfo()["testOrder"]
 );
 
-// MAIN EXPERIMENTAL TIMELINE
-
-// create timeline
-const timeline = [];
+// TIMELINE SETUP
 
 // define welcome message trial
 const welcome = {
@@ -196,7 +184,6 @@ const welcome = {
   }
 };
 
-
 // define break screen trial with a countdown timer
 const breakScreen = {
   type: jsPsychHtmlKeyboardResponse,
@@ -207,7 +194,6 @@ const breakScreen = {
   post_trial_gap: 500,
   on_load: function() {
     let remainingTime = breakDur;
-
     const countdownEl = document.getElementById('countdown');
     countdownEl.textContent = `Time remaining: ${remainingTime} seconds`;
 
@@ -247,18 +233,7 @@ const finishedMessage = {
   }
 };  
 
-if (SAVE_DATA_XAMPP) {
-  console.log("Saving data to XAMPP server at the end of the experiment.");
-  // add a trial to upload data to XAMPP server at the end of the experiment
-}
-
-
-/*
-TO DO (EXPOSURE):
-- combine visual streams into a single stream with 2 breaks and attention checks
-- allow multiple responses per trial
-*/
-
+// define exposure trial for timeline
 const exposureTrial = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: jsPsych.timelineVariable('stimulus'),
@@ -329,33 +304,7 @@ const exposureTrial = {
   }
 };
 
-// welcome screen
-timeline.push(welcome);
-
-const exposureBlocks = subParams.blockedVisualStreams
-console.log("exposureBlocks: ", exposureBlocks);
-exposureBlocks.forEach((blockTrial, t) => {
-  // if saving data to XAMPP, add a data upload trial at the end of each block
-  if (SAVE_DATA_XAMPP) {
-    timeline.push({
-      timeline: [exposureTrial, xhrDataUpload],
-      timeline_variables: blockTrial
-    });
-  } else {
-    //console.log("exposureTrial", exposureTrial);
-    //console.log("blockTrial", blockTrial);
-    timeline.push({
-      timeline: [exposureTrial],
-      timeline_variables: blockTrial
-    });
-  }
-  // Add a break after each block, except the last one
-  if (t < exposureBlocks.length - 1) {
-    timeline.push(breakScreen);
-  }
-});
-
-
+// define the test trial for timeline
 const testTrial = {
   timeline: [
     // Fixation before first image
@@ -542,19 +491,6 @@ const testTrial = {
           "data:", data
         )
 
-        // // Extract all trials in this blockTNum + blockNum group
-        // const trialData = jsPsych.data.get().filter({
-        //   blockTNum: data.blockTNum,
-        //   blockNum: data.blockNum
-        // }).values();
-
-        // const imageFids = {
-        //   pair1Img1: trialData.find(d => d.trialType === "pair1Img1")?.stimFid ?? "NA",
-        //   pair1Img2: trialData.find(d => d.trialType === "pair1Img2")?.stimFid ?? "NA",
-        //   pair2Img1: trialData.find(d => d.trialType === "pair2Img1")?.stimFid ?? "NA",
-        //   pair2Img2: trialData.find(d => d.trialType === "pair2Img2")?.stimFid ?? "NA"
-        // };
-
         // Add a clean, flat row summarizing this entire trial sequence
         jsPsych.data.addDataToLastTrial({
           blockTNum: data.blockTNum,
@@ -595,13 +531,49 @@ const testTrial = {
   timeline_variables: [] // to be filled dynamically when added to the timeline
 };
 
+/* JSPSYCH TIMELINE DEFINITIONS */
+
+// init timeline
+const timeline = [];
+
+// init connection with pavlovia.org
+const pavlovia_init = {
+    type: "pavlovia",
+    command: "init"
+};
+timeline.push(pavlovia_init);
+
+// welcome screen
+timeline.push(welcome);
+
+const exposureBlocks = subParams.blockedVisualStreams
+console.log("exposureBlocks: ", exposureBlocks);
+exposureBlocks.forEach((blockTrial, t) => {
+  // if saving data to XAMPP, add a data upload trial at the end of each block
+  if (SAVE_DATA_XAMPP) {
+    timeline.push({
+      timeline: [exposureTrial, xhrDataUpload],
+      timeline_variables: blockTrial
+    });
+  } else {
+    //console.log("exposureTrial", exposureTrial);
+    //console.log("blockTrial", blockTrial);
+    timeline.push({
+      timeline: [exposureTrial],
+      timeline_variables: blockTrial
+    });
+  }
+  // Add a break after each block, except the last one
+  if (t < exposureBlocks.length - 1) {
+    timeline.push(breakScreen);
+  }
+});
+
+
 // define the indirect test trials
 const indirectTestTrials = subParams.indirectTestTrials;
-console.log("indirectTestTrials: ", indirectTestTrials);
 Object.keys(indirectTestTrials).forEach((testBlock, t) => {
   const currentBlockTrials = indirectTestTrials[testBlock];
-  console.log(`Processing indirect test block: ${testBlock}`, currentBlockTrials);
-
   if (SAVE_DATA_XAMPP) {
     // Data upload trial
     timeline.push({
@@ -619,11 +591,8 @@ Object.keys(indirectTestTrials).forEach((testBlock, t) => {
 
 // define the direct test trials  
 const directTestTrials = subParams.directTestTrials;
-console.log("directTestTrials: ", directTestTrials);
 Object.keys(directTestTrials).forEach((testBlock, t) => {
   const currentBlockTrials = directTestTrials[testBlock];
-  console.log(`Processing test block: ${testBlock}`, currentBlockTrials);
-
   if (SAVE_DATA_XAMPP) {
     // Data upload trial
     timeline.push({
@@ -638,6 +607,14 @@ Object.keys(directTestTrials).forEach((testBlock, t) => {
   }
 
 });
+
+// finish connection with pavlovia.org
+var pavlovia_finish = {
+    type: "pavlovia",
+    command: "finish",
+    participantId: "JSPSYCH-DEMO"
+};
+timeline.push(pavlovia_finish);
 
 // at the end of experiment, add the finished message
 timeline.push(finishedMessage);
